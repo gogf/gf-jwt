@@ -17,12 +17,12 @@ import (
 // This is the default claims type if you don't supply one
 type MapClaims map[string]interface{}
 
-// GinJWTMiddleware provides a Json-Web-Token authentication implementation. On failure, a 401 HTTP response
+// GfJWTMiddleware provides a Json-Web-Token authentication implementation. On failure, a 401 HTTP response
 // is returned. On success, the wrapped middleware is called, and the userID is made available as
 // c.Get("userID").(string).
 // Users can get a token by posting a json request to LoginHandler. The token then needs to be passed in
 // the Authentication header. Example: Authorization:Bearer XXX_TOKEN_XXX
-type GinJWTMiddleware struct {
+type GfJWTMiddleware struct {
 	// Realm name to display to the user. Required.
 	Realm string
 
@@ -136,7 +136,7 @@ var (
 	ErrForbidden = errors.New("you don't have permission to access this resource")
 
 	// ErrMissingAuthenticatorFunc indicates Authenticator is required
-	ErrMissingAuthenticatorFunc = errors.New("ginJWTMiddleware.Authenticator func is undefined")
+	ErrMissingAuthenticatorFunc = errors.New("GfJWTMiddleware.Authenticator func is undefined")
 
 	// ErrMissingLoginValues indicates a user tried to authenticate without username or password
 	ErrMissingLoginValues = errors.New("missing Username or Password")
@@ -190,8 +190,8 @@ var (
 	IdentityKey = "identity"
 )
 
-// New for check error with GinJWTMiddleware
-func New(m *GinJWTMiddleware) (*GinJWTMiddleware, error) {
+// New for check error with GfJWTMiddleware
+func New(m *GfJWTMiddleware) (*GfJWTMiddleware, error) {
 	if err := m.MiddlewareInit(); err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ func New(m *GinJWTMiddleware) (*GinJWTMiddleware, error) {
 	return m, nil
 }
 
-func (mw *GinJWTMiddleware) readKeys() error {
+func (mw *GfJWTMiddleware) readKeys() error {
 	err := mw.privateKey()
 	if err != nil {
 		return err
@@ -211,7 +211,7 @@ func (mw *GinJWTMiddleware) readKeys() error {
 	return nil
 }
 
-func (mw *GinJWTMiddleware) privateKey() error {
+func (mw *GfJWTMiddleware) privateKey() error {
 	keyData, err := ioutil.ReadFile(mw.PrivKeyFile)
 	if err != nil {
 		return ErrNoPrivKeyFile
@@ -224,7 +224,7 @@ func (mw *GinJWTMiddleware) privateKey() error {
 	return nil
 }
 
-func (mw *GinJWTMiddleware) publicKey() error {
+func (mw *GfJWTMiddleware) publicKey() error {
 	keyData, err := ioutil.ReadFile(mw.PubKeyFile)
 	if err != nil {
 		return ErrNoPubKeyFile
@@ -237,7 +237,7 @@ func (mw *GinJWTMiddleware) publicKey() error {
 	return nil
 }
 
-func (mw *GinJWTMiddleware) usingPublicKeyAlgo() bool {
+func (mw *GfJWTMiddleware) usingPublicKeyAlgo() bool {
 	switch mw.SigningAlgorithm {
 	case "RS256", "RS512", "RS384":
 		return true
@@ -246,7 +246,7 @@ func (mw *GinJWTMiddleware) usingPublicKeyAlgo() bool {
 }
 
 // MiddlewareInit initialize jwt configs.
-func (mw *GinJWTMiddleware) MiddlewareInit() error {
+func (mw *GfJWTMiddleware) MiddlewareInit() error {
 
 	if mw.TokenLookup == "" {
 		mw.TokenLookup = "header:Authorization"
@@ -339,14 +339,14 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	return nil
 }
 
-// MiddlewareFunc makes GinJWTMiddleware implement the Middleware interface.
-func (mw *GinJWTMiddleware) MiddlewareFunc() ghttp.HandlerFunc {
+// MiddlewareFunc makes GfJWTMiddleware implement the Middleware interface.
+func (mw *GfJWTMiddleware) MiddlewareFunc() ghttp.HandlerFunc {
 	return func(r *ghttp.Request) {
 		mw.middlewareImpl(r)
 	}
 }
 
-func (mw *GinJWTMiddleware) middlewareImpl(r *ghttp.Request) {
+func (mw *GfJWTMiddleware) middlewareImpl(r *ghttp.Request) {
 	claims, err := mw.GetClaimsFromJWT(r)
 	if err != nil {
 		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, r))
@@ -384,7 +384,7 @@ func (mw *GinJWTMiddleware) middlewareImpl(r *ghttp.Request) {
 }
 
 // GetClaimsFromJWT get claims from JWT token
-func (mw *GinJWTMiddleware) GetClaimsFromJWT(r *ghttp.Request) (MapClaims, error) {
+func (mw *GfJWTMiddleware) GetClaimsFromJWT(r *ghttp.Request) (MapClaims, error) {
 	token, err := mw.ParseToken(r)
 
 	if err != nil {
@@ -409,7 +409,7 @@ func (mw *GinJWTMiddleware) GetClaimsFromJWT(r *ghttp.Request) (MapClaims, error
 // LoginHandler can be used by clients to get a jwt token.
 // Payload needs to be json in the form of {"username": "USERNAME", "password": "PASSWORD"}.
 // Reply will be of the form {"token": "TOKEN"}.
-func (mw *GinJWTMiddleware) LoginHandler(r *ghttp.Request) {
+func (mw *GfJWTMiddleware) LoginHandler(r *ghttp.Request) {
 	if mw.Authenticator == nil {
 		mw.unauthorized(r, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrMissingAuthenticatorFunc, r))
 		return
@@ -451,7 +451,7 @@ func (mw *GinJWTMiddleware) LoginHandler(r *ghttp.Request) {
 	mw.LoginResponse(r, http.StatusOK, tokenString, expire)
 }
 
-func (mw *GinJWTMiddleware) signedString(token *jwt.Token) (string, error) {
+func (mw *GfJWTMiddleware) signedString(token *jwt.Token) (string, error) {
 	var tokenString string
 	var err error
 	if mw.usingPublicKeyAlgo() {
@@ -463,9 +463,9 @@ func (mw *GinJWTMiddleware) signedString(token *jwt.Token) (string, error) {
 }
 
 // RefreshHandler can be used to refresh a token. The token still needs to be valid on refresh.
-// Shall be put under an endpoint that is using the GinJWTMiddleware.
+// Shall be put under an endpoint that is using the GfJWTMiddleware.
 // Reply will be of the form {"token": "TOKEN"}.
-func (mw *GinJWTMiddleware) RefreshHandler(r *ghttp.Request) {
+func (mw *GfJWTMiddleware) RefreshHandler(r *ghttp.Request) {
 	tokenString, expire, err := mw.RefreshToken(r)
 	if err != nil {
 		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, r))
@@ -476,7 +476,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(r *ghttp.Request) {
 }
 
 // RefreshToken refresh token and check if token is expired
-func (mw *GinJWTMiddleware) RefreshToken(r *ghttp.Request) (string, time.Time, error) {
+func (mw *GfJWTMiddleware) RefreshToken(r *ghttp.Request) (string, time.Time, error) {
 	claims, err := mw.CheckIfTokenExpire(r)
 	if err != nil {
 		return "", time.Now(), err
@@ -509,7 +509,7 @@ func (mw *GinJWTMiddleware) RefreshToken(r *ghttp.Request) (string, time.Time, e
 }
 
 // CheckIfTokenExpire check if token expire
-func (mw *GinJWTMiddleware) CheckIfTokenExpire(r *ghttp.Request) (jwt.MapClaims, error) {
+func (mw *GfJWTMiddleware) CheckIfTokenExpire(r *ghttp.Request) (jwt.MapClaims, error) {
 	token, err := mw.ParseToken(r)
 
 	if err != nil {
@@ -536,7 +536,7 @@ func (mw *GinJWTMiddleware) CheckIfTokenExpire(r *ghttp.Request) (jwt.MapClaims,
 }
 
 // TokenGenerator method that clients can use to get a jwt token.
-func (mw *GinJWTMiddleware) TokenGenerator(data interface{}) (string, time.Time, error) {
+func (mw *GfJWTMiddleware) TokenGenerator(data interface{}) (string, time.Time, error) {
 	token := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
 	claims := token.Claims.(jwt.MapClaims)
 
@@ -557,7 +557,7 @@ func (mw *GinJWTMiddleware) TokenGenerator(data interface{}) (string, time.Time,
 	return tokenString, expire, nil
 }
 
-func (mw *GinJWTMiddleware) jwtFromHeader(r *ghttp.Request, key string) (string, error) {
+func (mw *GfJWTMiddleware) jwtFromHeader(r *ghttp.Request, key string) (string, error) {
 	authHeader := r.Header.Get(key)
 
 	if authHeader == "" {
@@ -572,7 +572,7 @@ func (mw *GinJWTMiddleware) jwtFromHeader(r *ghttp.Request, key string) (string,
 	return parts[1], nil
 }
 
-func (mw *GinJWTMiddleware) jwtFromQuery(r *ghttp.Request, key string) (string, error) {
+func (mw *GfJWTMiddleware) jwtFromQuery(r *ghttp.Request, key string) (string, error) {
 	token := r.GetString(key)
 
 	if token == "" {
@@ -582,7 +582,7 @@ func (mw *GinJWTMiddleware) jwtFromQuery(r *ghttp.Request, key string) (string, 
 	return token, nil
 }
 
-func (mw *GinJWTMiddleware) jwtFromCookie(r *ghttp.Request, key string) (string, error) {
+func (mw *GfJWTMiddleware) jwtFromCookie(r *ghttp.Request, key string) (string, error) {
 	cookie := r.Cookie.Get(key)
 
 	if cookie == "" {
@@ -592,7 +592,7 @@ func (mw *GinJWTMiddleware) jwtFromCookie(r *ghttp.Request, key string) (string,
 	return cookie, nil
 }
 
-func (mw *GinJWTMiddleware) jwtFromParam(r *ghttp.Request, key string) (string, error) {
+func (mw *GfJWTMiddleware) jwtFromParam(r *ghttp.Request, key string) (string, error) {
 	token := r.GetString(key)
 	if token == "" {
 		return "", ErrEmptyParamToken
@@ -602,7 +602,7 @@ func (mw *GinJWTMiddleware) jwtFromParam(r *ghttp.Request, key string) (string, 
 }
 
 // ParseToken parse jwt token
-func (mw *GinJWTMiddleware) ParseToken(r *ghttp.Request) (*jwt.Token, error) {
+func (mw *GfJWTMiddleware) ParseToken(r *ghttp.Request) (*jwt.Token, error) {
 	var token string
 	var err error
 
@@ -645,7 +645,7 @@ func (mw *GinJWTMiddleware) ParseToken(r *ghttp.Request) (*jwt.Token, error) {
 	})
 }
 
-func (mw *GinJWTMiddleware) unauthorized(r *ghttp.Request, code int, message string) {
+func (mw *GfJWTMiddleware) unauthorized(r *ghttp.Request, code int, message string) {
 	r.Header.Set("WWW-Authenticate", "JWT realm="+mw.Realm)
 	mw.Unauthorized(r, code, message)
 	if !mw.DisabledAbort {

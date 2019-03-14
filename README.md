@@ -28,105 +28,105 @@ Check [demo](example/auth/index.go) and use `ExtractClaims` to customize user da
 [embedmd]:# (example/auth/index.go go)
 
 ```go
-Package auth
+package auth
 
-Import (
-"github.com/gogf/gf/g"
-"github.com/gogf/gf/g/net/ghttp"
-"github.com/gogf/gf/g/util/gvalid"
-"github.com/zhaopengme/gf-jwt"
-"log"
-"net/http"
-"time"
+import (
+	"github.com/gogf/gf/g"
+	"github.com/gogf/gf/g/net/ghttp"
+	"github.com/gogf/gf/g/util/gvalid"
+	"github.com/zhaopengme/gf-jwt"
+	"log"
+	"net/http"
+	"time"
 )
 
-Type Default struct {
-GinJWTMiddleware *jwt.GinJWTMiddleware
-Rules map[string]string
+type Default struct {
+	GinJWTMiddleware *jwt.GinJWTMiddleware
+	Rules            map[string]string
 }
 
-Func (d *Default) Init() {
-authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
-Realm: "test zone",
-Key: []byte("secret key"),
-Timeout: time.Minute * 5,
-MaxRefresh: time.Minute * 5,
-IdentityKey: "id",
-TokenLookup: "header: Authorization, query: token, cookie: jwt",
-TokenHeadName: "Bearer",
-TimeFunc: time.Now,
-Authenticator: d.Authenticator,
-LoginResponse: d.LoginResponse,
-RefreshResponse: d.RefreshResponse,
-Unauthorized: d.Unauthorized,
-IdentityHandler: d.IdentityHandler,
-PayloadFunc: d.PayloadFunc,
-})
-If err != nil {
-log.Fatal("JWT Error:" + err.Error())
-}
-d.GinJWTMiddleware = authMiddleware
-d.Rules = map[string]string{
-"username": "required",
-"password": "required",
-}
-}
-
-Func (d *Default) PayloadFunc(data interface{}) jwt.MapClaims {
-Claims := jwt.MapClaims{}
-Params := data.(map[string]interface{})
-If len(params) > 0 {
-For k, v := range params {
-Claims[k] = v
-}
-}
-Return claims
+func (d *Default) Init() {
+	authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
+		Realm:           "test zone",
+		Key:             []byte("secret key"),
+		Timeout:         time.Minute * 5,
+		MaxRefresh:      time.Minute * 5,
+		IdentityKey:     "id",
+		TokenLookup:     "header: Authorization, query: token, cookie: jwt",
+		TokenHeadName:   "Bearer",
+		TimeFunc:        time.Now,
+		Authenticator:   d.Authenticator,
+		LoginResponse:   d.LoginResponse,
+		RefreshResponse: d.RefreshResponse,
+		Unauthorized:    d.Unauthorized,
+		IdentityHandler: d.IdentityHandler,
+		PayloadFunc:     d.PayloadFunc,
+	})
+	if err != nil {
+		log.Fatal("JWT Error:" + err.Error())
+	}
+	d.GinJWTMiddleware = authMiddleware
+	d.Rules = map[string]string{
+		"username": "required",
+		"password": "required",
+	}
 }
 
-Func (d *Default) IdentityHandler(r *ghttp.Request) interface{} {
-Claims := jwt.ExtractClaims(r)
-Return claims["id"]
+func (d *Default) PayloadFunc(data interface{}) jwt.MapClaims {
+	claims := jwt.MapClaims{}
+	params := data.(map[string]interface{})
+	if len(params) > 0 {
+		for k, v := range params {
+			claims[k] = v
+		}
+	}
+	return claims
 }
 
-Func (d *Default) Unauthorized(r *ghttp.Request, code int, message string) {
-r.Response.WriteJson(g.Map{
-"code": code,
-"msg": message,
-})
-r.ExitAll()
+func (d *Default) IdentityHandler(r *ghttp.Request) interface{} {
+	claims := jwt.ExtractClaims(r)
+	return claims["id"]
 }
 
-Func (d *Default) LoginResponse(r *ghttp.Request, code int, token string, expire time.Time) {
-r.Response.WriteJson(g.Map{
-"code": http.StatusOK,
-"token": token,
-"expire": expire.Format(time.RFC3339),
-})
-r.ExitAll()
+func (d *Default) Unauthorized(r *ghttp.Request, code int, message string) {
+	r.Response.WriteJson(g.Map{
+		"code": code,
+		"msg":  message,
+	})
+	r.ExitAll()
 }
 
-Func (d *Default) RefreshResponse(r *ghttp.Request, code int, token string, expire time.Time) {
-r.Response.WriteJson(g.Map{
-"code": http.StatusOK,
-"token": token,
-"expire": expire.Format(time.RFC3339),
-})
-r.ExitAll()
+func (d *Default) LoginResponse(r *ghttp.Request, code int, token string, expire time.Time) {
+	r.Response.WriteJson(g.Map{
+		"code":   http.StatusOK,
+		"token":  token,
+		"expire": expire.Format(time.RFC3339),
+	})
+	r.ExitAll()
 }
 
-Func (d *Default) Authenticator(r *ghttp.Request) (interface{}, error) {
-Data := r.GetMap()
-If e := gvalid.CheckMap(data, d.Rules); e != nil {
-Return "", jwt.ErrFailedAuthentication
-}
-If (data["username"] == "admin" && data["password"] == "admin") {
-Return g.Map{
-"username": data["username"],
-"id": data["username"],
-}, nil
+func (d *Default) RefreshResponse(r *ghttp.Request, code int, token string, expire time.Time) {
+	r.Response.WriteJson(g.Map{
+		"code":   http.StatusOK,
+		"token":  token,
+		"expire": expire.Format(time.RFC3339),
+	})
+	r.ExitAll()
 }
 
-Return nil, jwt.ErrFailedAuthentication
+func (d *Default) Authenticator(r *ghttp.Request) (interface{}, error) {
+	data := r.GetMap()
+	if e := gvalid.CheckMap(data, d.Rules); e != nil {
+		return "", jwt.ErrFailedAuthentication
+	}
+	if (data["username"] == "admin" && data["password"] == "admin") {
+		return g.Map{
+			"username": data["username"],
+			"id":       data["username"],
+		}, nil
+	}
+
+	return nil, jwt.ErrFailedAuthentication
 }
 
 ```

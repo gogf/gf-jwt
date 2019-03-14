@@ -1,135 +1,139 @@
 # gf-jwt
-gf 的 jwt 插件
+Gf jwt plugin
 
-这个插件是 fork 了 [https://github.com/appleboy/gin-jwt](https://github.com/appleboy/gin-jwt) 插件,修改为 [https://github.com/gogf/gf](https://github.com/gogf/gf) 插件. 
+This plugin is forked [https://github.com/appleboy/gin-jwt](https://github.com/appleboy/gin-jwt) plugin, modified to [https://github.com/gogf/ Gf](https://github.com/gogf/gf) plugin.
 
-## 使用
 
-下载安装
+[英文](README.md) [中文](README_zh.md)
+
+
+## Use
+
+Download and install
 
 ```sh
 $ go get github.com/zhaopengme/gf-jwt
 ```
 
-导入
+Import
 
 ```go
-import "github.com/zhaopengme/gf-jwt"
+Import "github.com/zhaopengme/gf-jwt"
 ```
 
-## 例子
+## example
 
-查看 [demo](example/auth/index.go) ,使用 `ExtractClaims` 可以自定义用户数据.
+Check [demo](example/auth/index.go) and use `ExtractClaims` to customize user data.
 
 [embedmd]:# (example/auth/index.go go)
 
 ```go
-package auth
+Package auth
 
-import (
-	"github.com/gogf/gf/g"
-	"github.com/gogf/gf/g/net/ghttp"
-	"github.com/gogf/gf/g/util/gvalid"
-	"github.com/zhaopengme/gf-jwt"
-	"log"
-	"net/http"
-	"time"
+Import (
+"github.com/gogf/gf/g"
+"github.com/gogf/gf/g/net/ghttp"
+"github.com/gogf/gf/g/util/gvalid"
+"github.com/zhaopengme/gf-jwt"
+"log"
+"net/http"
+"time"
 )
 
-type Default struct {
-	GinJWTMiddleware *jwt.GinJWTMiddleware
-	Rules            map[string]string
+Type Default struct {
+GinJWTMiddleware *jwt.GinJWTMiddleware
+Rules map[string]string
 }
 
-func (d *Default) Init() {
-	authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
-		Realm:           "test zone",
-		Key:             []byte("secret key"),
-		Timeout:         time.Minute * 5,
-		MaxRefresh:      time.Minute * 5,
-		IdentityKey:     "id",
-		TokenLookup:     "header: Authorization, query: token, cookie: jwt",
-		TokenHeadName:   "Bearer",
-		TimeFunc:        time.Now,
-		Authenticator:   d.Authenticator,
-		LoginResponse:   d.LoginResponse,
-		RefreshResponse: d.RefreshResponse,
-		Unauthorized:    d.Unauthorized,
-		IdentityHandler: d.IdentityHandler,
-		PayloadFunc:     d.PayloadFunc,
-	})
-	if err != nil {
-		log.Fatal("JWT Error:" + err.Error())
-	}
-	d.GinJWTMiddleware = authMiddleware
-	d.Rules = map[string]string{
-		"username": "required",
-		"password": "required",
-	}
+Func (d *Default) Init() {
+authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
+Realm: "test zone",
+Key: []byte("secret key"),
+Timeout: time.Minute * 5,
+MaxRefresh: time.Minute * 5,
+IdentityKey: "id",
+TokenLookup: "header: Authorization, query: token, cookie: jwt",
+TokenHeadName: "Bearer",
+TimeFunc: time.Now,
+Authenticator: d.Authenticator,
+LoginResponse: d.LoginResponse,
+RefreshResponse: d.RefreshResponse,
+Unauthorized: d.Unauthorized,
+IdentityHandler: d.IdentityHandler,
+PayloadFunc: d.PayloadFunc,
+})
+If err != nil {
+log.Fatal("JWT Error:" + err.Error())
+}
+d.GinJWTMiddleware = authMiddleware
+d.Rules = map[string]string{
+"username": "required",
+"password": "required",
+}
 }
 
-func (d *Default) PayloadFunc(data interface{}) jwt.MapClaims {
-	claims := jwt.MapClaims{}
-	params := data.(map[string]interface{})
-	if len(params) > 0 {
-		for k, v := range params {
-			claims[k] = v
-		}
-	}
-	return claims
+Func (d *Default) PayloadFunc(data interface{}) jwt.MapClaims {
+Claims := jwt.MapClaims{}
+Params := data.(map[string]interface{})
+If len(params) > 0 {
+For k, v := range params {
+Claims[k] = v
+}
+}
+Return claims
 }
 
-func (d *Default) IdentityHandler(r *ghttp.Request) interface{} {
-	claims := jwt.ExtractClaims(r)
-	return claims["id"]
+Func (d *Default) IdentityHandler(r *ghttp.Request) interface{} {
+Claims := jwt.ExtractClaims(r)
+Return claims["id"]
 }
 
-func (d *Default) Unauthorized(r *ghttp.Request, code int, message string) {
-	r.Response.WriteJson(g.Map{
-		"code": code,
-		"msg":  message,
-	})
-	r.ExitAll()
+Func (d *Default) Unauthorized(r *ghttp.Request, code int, message string) {
+r.Response.WriteJson(g.Map{
+"code": code,
+"msg": message,
+})
+r.ExitAll()
 }
 
-func (d *Default) LoginResponse(r *ghttp.Request, code int, token string, expire time.Time) {
-	r.Response.WriteJson(g.Map{
-		"code":   http.StatusOK,
-		"token":  token,
-		"expire": expire.Format(time.RFC3339),
-	})
-	r.ExitAll()
+Func (d *Default) LoginResponse(r *ghttp.Request, code int, token string, expire time.Time) {
+r.Response.WriteJson(g.Map{
+"code": http.StatusOK,
+"token": token,
+"expire": expire.Format(time.RFC3339),
+})
+r.ExitAll()
 }
 
-func (d *Default) RefreshResponse(r *ghttp.Request, code int, token string, expire time.Time) {
-	r.Response.WriteJson(g.Map{
-		"code":   http.StatusOK,
-		"token":  token,
-		"expire": expire.Format(time.RFC3339),
-	})
-	r.ExitAll()
+Func (d *Default) RefreshResponse(r *ghttp.Request, code int, token string, expire time.Time) {
+r.Response.WriteJson(g.Map{
+"code": http.StatusOK,
+"token": token,
+"expire": expire.Format(time.RFC3339),
+})
+r.ExitAll()
 }
 
-func (d *Default) Authenticator(r *ghttp.Request) (interface{}, error) {
-	data := r.GetMap()
-	if e := gvalid.CheckMap(data, d.Rules); e != nil {
-		return "", jwt.ErrFailedAuthentication
-	}
-	if (data["username"] == "admin" && data["password"] == "admin") {
-		return g.Map{
-			"username": data["username"],
-			"id":       data["username"],
-		}, nil
-	}
+Func (d *Default) Authenticator(r *ghttp.Request) (interface{}, error) {
+Data := r.GetMap()
+If e := gvalid.CheckMap(data, d.Rules); e != nil {
+Return "", jwt.ErrFailedAuthentication
+}
+If (data["username"] == "admin" && data["password"] == "admin") {
+Return g.Map{
+"username": data["username"],
+"id": data["username"],
+}, nil
+}
 
-	return nil, jwt.ErrFailedAuthentication
+Return nil, jwt.ErrFailedAuthentication
 }
 
 ```
 
 ## Demo
 
-运行 `example/server/index.go` 在 `8000`端口.
+Run `example/server/index.go` on the `8000` port.
 
 ```bash
 $ go run example/server/index.go
@@ -137,51 +141,51 @@ $ go run example/server/index.go
 
 ![api screenshot](screenshot/server.png)
 
-通过 [httpie](https://github.com/jkbrzt/httpie) ,在命令行来测试下效果.
+Test the effect on the command line via [httpie](https://github.com/jkbrzt/httpie).
 
-### 登录接口:
+### Login interface:
 
 ```bash
-$ http -v --form  POST localhost:8000/login username=admin password=admin
+$ http -v --form POST localhost:8000/login username=admin password=admin
 ```
 
-命令行输出
+Command line output
 
 ![api screenshot](screenshot/login.png)
 
-### 刷新 token 接口:
+### Refresh token interface:
 
 ```bash
-$ http -v -f GET localhost:8000/user/refresh_token "Authorization:Bearer xxxxxxxxx"  "Content-Type: application/json"
+$ http -v -f GET localhost:8000/user/refresh_token "Authorization:Bearer xxxxxxxxx" "Content-Type: application/json"
 ```
 
-命令行输出
+Command line output
 
 ![api screenshot](screenshot/refresh_token.png)
 
-### hello 接口
+### hello interface
 
-我们使用用户名 `admin` 和密码 `admin` 测试一下 hello 接口的返回
+We test the return of the hello interface with the username `admin` and password `admin`
 
 ```bash
-$ http -f GET localhost:8000/user/hello "Authorization:Bearer xxxxxxxxx"  "Content-Type: application/json"
+$ http -f GET localhost:8000/user/hello "Authorization:Bearer xxxxxxxxx" "Content-Type: application/json"
 ```
 
-命令行输出
+Command line output
 
 ![api screenshot](screenshot/hello.png)
 
-### 用户验证接口
+### User Authentication Interface
 
-我们用未授权的 token 来测试 hello 接口的返回
+We use an unauthorized token to test the return of the hello interface.
 
 ```bash
-$ http -f GET localhost:8000/user/hello "Authorization:Bearer xxxxxxxxx"  "Content-Type: application/json"
+$ http -f GET localhost:8000/user/hello "Authorization:Bearer xxxxxxxxx" "Content-Type: application/json"
 ```
 
-命令行输出
+Command line output
 
 ![api screenshot](screenshot/401.png)
 
 
-再次感谢[https://github.com/appleboy/gin-jwt](https://github.com/appleboy/gin-jwt)
+Thanks again [https://github.com/appleboy/gin-jwt](https://github.com/appleboy/gin-jwt)

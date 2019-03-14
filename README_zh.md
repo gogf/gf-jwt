@@ -1,7 +1,7 @@
 # gf-jwt
 gf 的 jwt 插件
 
-这个插件是 fork 了 [https://github.com/appleboy/gin-jwt](https://github.com/appleboy/gin-jwt) 插件,修改为 [https://github.com/gogf/gf](https://github.com/gogf/gf) 插件. 
+这个插件是 fork 了 [https://github.com/appleboy/gin-jwt](https://github.com/appleboy/gin-jwt) 插件,修改为 [https://github.com/gogf/gf](https://github.com/gogf/gf) 插件.
 
 
 [英文](README.md) [中文](README_zh.md)
@@ -41,12 +41,12 @@ import (
 )
 
 type Default struct {
-	GinJWTMiddleware *jwt.GinJWTMiddleware
+	GfJWTMiddleware *jwt.GfJWTMiddleware
 	Rules            map[string]string
 }
 
 func (d *Default) Init() {
-	authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
+	authMiddleware, err := jwt.New(&jwt.GfJWTMiddleware{
 		Realm:           "test zone",
 		Key:             []byte("secret key"),
 		Timeout:         time.Minute * 5,
@@ -65,7 +65,7 @@ func (d *Default) Init() {
 	if err != nil {
 		log.Fatal("JWT Error:" + err.Error())
 	}
-	d.GinJWTMiddleware = authMiddleware
+	d.GfJWTMiddleware = authMiddleware
 	d.Rules = map[string]string{
 		"username": "required",
 		"password": "required",
@@ -128,7 +128,6 @@ func (d *Default) Authenticator(r *ghttp.Request) (interface{}, error) {
 
 	return nil, jwt.ErrFailedAuthentication
 }
-
 ```
 
 ## Demo

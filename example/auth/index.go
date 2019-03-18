@@ -1,10 +1,10 @@
 package auth
 
 import (
+	"github.com/gogf/gf-jwt"
 	"github.com/gogf/gf/g"
 	"github.com/gogf/gf/g/net/ghttp"
 	"github.com/gogf/gf/g/util/gvalid"
-	"github.com/zhaopengme/gf-jwt"
 	"log"
 	"net/http"
 	"time"
@@ -89,8 +89,8 @@ func (d *Default) Authenticator(r *ghttp.Request) (interface{}, error) {
 	if e := gvalid.CheckMap(data, d.Rules); e != nil {
 		return "", jwt.ErrFailedAuthentication
 	}
-	if (data["username"] == "admin" && data["password"] == "admin") {
-		return g.Map{
+	if data["username"] == "admin" && data["password"] == "admin" {
+		return g.Map {
 			"username": data["username"],
 			"id":       data["username"],
 		}, nil

@@ -1,5 +1,5 @@
 # gf-jwt
-gf 的 jwt 插件
+gf 的 jwt 插件。
 
 这个插件是 fork 了 [https://github.com/appleboy/gin-jwt](https://github.com/appleboy/gin-jwt) 插件,修改为 [https://github.com/gogf/gf](https://github.com/gogf/gf) 插件.
 
@@ -12,13 +12,13 @@ gf 的 jwt 插件
 下载安装
 
 ```sh
-$ go get github.com/zhaopengme/gf-jwt
+$ go get github.com/gogf/gf-jwt
 ```
 
 导入
 
 ```go
-import "github.com/zhaopengme/gf-jwt"
+import "github.com/gogf/gf-jwt"
 ```
 
 ## 例子
@@ -34,7 +34,7 @@ import (
 	"github.com/gogf/gf/g"
 	"github.com/gogf/gf/g/net/ghttp"
 	"github.com/gogf/gf/g/util/gvalid"
-	"github.com/zhaopengme/gf-jwt"
+	"github.com/gogf/gf-jwt"
 	"log"
 	"net/http"
 	"time"
@@ -187,4 +187,4 @@ $ http -f GET localhost:8000/user/hello "Authorization:Bearer xxxxxxxxx"  "Conte
 ![api screenshot](screenshot/401.png)
 
 
-再次感谢[https://github.com/appleboy/gin-jwt](https://github.com/appleboy/gin-jwt)
+再次感谢[https://github.com/appleboy/gin-jwt](https://github.com/appleboy/gin-jwt)。

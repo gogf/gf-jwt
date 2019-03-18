@@ -1,13 +1,13 @@
 package main
 
 import (
+	"github.com/gogf/gf-jwt/example/auth"
 	"github.com/gogf/gf/g"
 	"github.com/gogf/gf/g/net/ghttp"
-	"github.com/zhaopengme/gf-jwt/example/auth"
 )
 
 func hello(r *ghttp.Request) {
-	r.Response.Write("哈喽世界！")
+	r.Response.Write("Hello World!")
 }
 
 func main() {
@@ -27,7 +27,7 @@ func main() {
 	})
 
 	s.BindHandler("/", func(r *ghttp.Request) {
-		r.Response.Write("it's work！")
+		r.Response.Write("It works！")
 	})
 	s.SetPort(8000)
 	s.Run()

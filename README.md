@@ -1,7 +1,7 @@
 # gf-jwt
-Gf jwt plugin
+GF jwt plugin
 
-This plugin is forked [https://github.com/appleboy/gin-jwt](https://github.com/appleboy/gin-jwt) plugin, modified to [https://github.com/gogf/ Gf](https://github.com/gogf/gf) plugin.
+This plugin is forked [https://github.com/appleboy/gin-jwt](https://github.com/appleboy/gin-jwt) plugin, modified to [https://github.com/gogf/gf](https://github.com/gogf/gf) plugin.
 
 
 [英文](README.md) [中文](README_zh.md)
@@ -12,13 +12,13 @@ This plugin is forked [https://github.com/appleboy/gin-jwt](https://github.com/a
 Download and install
 
 ```sh
-$ go get github.com/zhaopengme/gf-jwt
+$ go get github.com/gogf/gf-jwt
 ```
 
 Import
 
 ```go
-Import "github.com/zhaopengme/gf-jwt"
+import "github.com/gogf/gf-jwt"
 ```
 
 ## example
@@ -34,7 +34,7 @@ import (
 	"github.com/gogf/gf/g"
 	"github.com/gogf/gf/g/net/ghttp"
 	"github.com/gogf/gf/g/util/gvalid"
-	"github.com/zhaopengme/gf-jwt"
+	"github.com/gogf/gf-jwt"
 	"log"
 	"net/http"
 	"time"

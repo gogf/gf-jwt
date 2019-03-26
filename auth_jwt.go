@@ -1,16 +1,14 @@
 package jwt
 
 import (
-	"crypto/rsa"
-	"errors"
-	"github.com/gogf/gf/g"
-	"github.com/gogf/gf/g/net/ghttp"
-	"io/ioutil"
-	"net/http"
-	"strings"
-	"time"
-
-	"github.com/dgrijalva/jwt-go"
+    "crypto/rsa"
+    "errors"
+    "github.com/gogf/gf/g"
+    "github.com/gogf/gf/g/net/ghttp"
+    "io/ioutil"
+    "net/http"
+    "strings"
+    "time"
 )
 
 // MapClaims type that uses the map[string]interface{} for JSON decoding
@@ -322,7 +320,7 @@ func (mw *GfJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.Realm == "" {
-		mw.Realm = "gin jwt"
+		mw.Realm = "gf jwt"
 	}
 
 	if mw.CookieName == "" {

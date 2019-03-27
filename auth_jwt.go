@@ -9,6 +9,8 @@ import (
     "net/http"
     "strings"
     "time"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
 // MapClaims type that uses the map[string]interface{} for JSON decoding

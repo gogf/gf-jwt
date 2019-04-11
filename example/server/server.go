@@ -15,7 +15,7 @@ func main() {
 	a := new(auth.Default)
 	a.Init()
 
-	s.BindHandler("POST:/login", a.GfJWTMiddleware.LoginHandler)
+	s.BindHandler("/login", a.GfJWTMiddleware.LoginHandler)
 
 	s.Group("/user").Bind("/user", []ghttp.GroupItem{
 		{"ALL", "*", func(r *ghttp.Request) {
@@ -27,7 +27,7 @@ func main() {
 	})
 
 	s.BindHandler("/", func(r *ghttp.Request) {
-		r.Response.Write("It works！")
+		r.Response.Write("It works!")
 	})
 	s.SetPort(8000)
 	s.Run()

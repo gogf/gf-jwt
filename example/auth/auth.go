@@ -4,15 +4,15 @@ import (
 	"github.com/gogf/gf-jwt"
 	"github.com/gogf/gf/g"
 	"github.com/gogf/gf/g/net/ghttp"
+	"github.com/gogf/gf/g/os/glog"
 	"github.com/gogf/gf/g/util/gvalid"
-	"log"
 	"net/http"
 	"time"
 )
 
 type Default struct {
 	GfJWTMiddleware *jwt.GfJWTMiddleware
-	Rules            map[string]string
+	Rules            g.Map
 }
 
 func (d *Default) Init() {
@@ -33,10 +33,10 @@ func (d *Default) Init() {
 		PayloadFunc:     d.PayloadFunc,
 	})
 	if err != nil {
-		log.Fatal("JWT Error:" + err.Error())
+		glog.Fatal("JWT Error:" + err.Error())
 	}
 	d.GfJWTMiddleware = authMiddleware
-	d.Rules = map[string]string{
+	d.Rules           = g.Map {
 		"username": "required",
 		"password": "required",
 	}

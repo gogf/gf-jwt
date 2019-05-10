@@ -4,7 +4,8 @@ import (
     "crypto/rsa"
     "errors"
     "github.com/gogf/gf/g"
-    "github.com/gogf/gf/g/net/ghttp"
+	"github.com/gogf/gf/g/net/ghttp"
+	"github.com/gogf/gf/g/util/gconv"
     "io/ioutil"
     "net/http"
     "strings"
@@ -418,7 +419,12 @@ func (mw *GfJWTMiddleware) LoginHandler(r *ghttp.Request) {
 	data, err := mw.Authenticator(r)
 
 	if err != nil {
-		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, r))
+		if data == nil {
+			mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, r))
+			return
+		}
+		
+		mw.unauthorized(r, gconv.Int(data), mw.HTTPStatusMessageFunc(err, r))
 		return
 	}
 

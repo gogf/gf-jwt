@@ -5,4 +5,4 @@ require (
 	github.com/gogf/gf v1.9.7
 )
 
-go 1.13
+go 1.10

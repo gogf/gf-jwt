@@ -444,7 +444,7 @@ func (mw *GfJWTMiddleware) LoginHandler(r *ghttp.Request) {
 	// set cookie
 	if mw.SendCookie {
 		maxage := int64(expire.Unix() - time.Now().Unix())
-		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxage)*time.Millisecond)
+		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxage)*time.Second)
 	}
 
 	mw.LoginResponse(r, http.StatusOK, tokenString, expire)
@@ -501,7 +501,7 @@ func (mw *GfJWTMiddleware) RefreshToken(r *ghttp.Request) (string, time.Time, er
 	// set cookie
 	if mw.SendCookie {
 		maxage := int64(expire.Unix() - time.Now().Unix())
-		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxage)*time.Millisecond)
+		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxage)*time.Second)
 	}
 
 	return tokenString, expire, nil

@@ -2,5 +2,7 @@ module github.com/gogf/gf-jwt
 
 require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/gogf/gf v1.6.2
+	github.com/gogf/gf v1.9.7 // indirect
 )
+
+go 1.10

@@ -1,11 +1,11 @@
 package auth
 
 import (
-	"github.com/gogf/gf-jwt"
-	"github.com/gogf/gf/g"
-	"github.com/gogf/gf/g/net/ghttp"
-	"github.com/gogf/gf/g/os/glog"
-	"github.com/gogf/gf/g/util/gvalid"
+	jwt "github.com/gogf/gf-jwt"
+	"github.com/gogf/gf/frame/g"
+	"github.com/gogf/gf/net/ghttp"
+	"github.com/gogf/gf/os/glog"
+	"github.com/gogf/gf/util/gvalid"
 	"net/http"
 	"time"
 )

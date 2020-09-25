@@ -1,17 +1,16 @@
 package jwt
 
 import (
-    "crypto/rsa"
-    "errors"
-    "github.com/gogf/gf/g"
-	"github.com/gogf/gf/g/net/ghttp"
-	"github.com/gogf/gf/g/util/gconv"
-    "io/ioutil"
-    "net/http"
-    "strings"
-    "time"
-
+	"crypto/rsa"
+	"errors"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/gogf/gf/frame/g"
+	"github.com/gogf/gf/net/ghttp"
+	"github.com/gogf/gf/util/gconv"
+	"io/ioutil"
+	"net/http"
+	"strings"
+	"time"
 )
 
 // MapClaims type that uses the map[string]interface{} for JSON decoding
@@ -393,7 +392,7 @@ func (mw *GfJWTMiddleware) GetClaimsFromJWT(r *ghttp.Request) (MapClaims, error)
 	}
 
 	if mw.SendAuthorization {
-		token := r.GetParam("JWT_TOKEN").String()
+		token := r.GetString("JWT_TOKEN")
 		if len(token) > 0 {
 			r.Header.Set("Authorization", mw.TokenHeadName+" "+token)
 		}
@@ -423,7 +422,7 @@ func (mw *GfJWTMiddleware) LoginHandler(r *ghttp.Request) {
 			mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, r))
 			return
 		}
-		
+
 		mw.unauthorized(r, gconv.Int(data), mw.HTTPStatusMessageFunc(err, r))
 		return
 	}
@@ -450,8 +449,8 @@ func (mw *GfJWTMiddleware) LoginHandler(r *ghttp.Request) {
 
 	// set cookie
 	if mw.SendCookie {
-		maxage := int(expire.Unix() - time.Now().Unix())
-		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", maxage)
+		maxage := int64(expire.Unix() - time.Now().Unix())
+		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxage)*time.Second)
 	}
 
 	mw.LoginResponse(r, http.StatusOK, tokenString, expire)
@@ -507,8 +506,8 @@ func (mw *GfJWTMiddleware) RefreshToken(r *ghttp.Request) (string, time.Time, er
 
 	// set cookie
 	if mw.SendCookie {
-		maxage := int(expire.Unix() - time.Now().Unix())
-		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", maxage)
+		maxage := int64(expire.Unix() - time.Now().Unix())
+		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxage)*time.Second)
 	}
 
 	return tokenString, expire, nil
@@ -662,13 +661,13 @@ func (mw *GfJWTMiddleware) unauthorized(r *ghttp.Request, code int, message stri
 
 // ExtractClaims help to extract the JWT claims
 func ExtractClaims(r *ghttp.Request) MapClaims {
-	claims := r.GetParam("JWT_PAYLOAD").Val()
+	claims := r.GetParam("JWT_PAYLOAD")
 	return claims.(MapClaims)
 }
 
 // GetToken help to get the JWT token string
 func GetToken(r *ghttp.Request) string {
-	token := r.GetParam("JWT_TOKEN").String()
+	token := r.GetString("JWT_TOKEN")
 	if len(token) == 0 {
 		return ""
 	}

@@ -2,8 +2,9 @@ package main
 
 import (
 	"github.com/gogf/gf-jwt/example/auth"
-	"github.com/gogf/gf/g"
-	"github.com/gogf/gf/g/net/ghttp"
+	"github.com/gogf/gf/frame/g"
+	"github.com/gogf/gf/net/ghttp"
+	"time"
 )
 
 // hello should be authenticated to view.
@@ -17,21 +18,25 @@ func works(r *ghttp.Request) {
 }
 
 // authHook is the HOOK function implements JWT logistics.
-func authHook(r *ghttp.Request) {
-	r.Response.CORSDefault()
+func MiddlewareAuth(r *ghttp.Request) {
 	auth.GfJWTMiddleware.MiddlewareFunc()(r)
+	r.Middleware.Next()
+}
+
+func MiddlewareCORS(r *ghttp.Request) {
+	r.Response.CORSDefault()
+	r.Middleware.Next()
 }
 
 func main() {
+	println(time.Now().Unix())
 	s := g.Server()
-	s.Group().Bind("/", []ghttp.GroupItem{
-		{"ALL",  "/",             works},
-		{"POST", "/login",        auth.GfJWTMiddleware.LoginHandler},
-	})
-	s.Group("/user").Bind("/user", []ghttp.GroupItem{
-		{"ALL", "*",              authHook, ghttp.HOOK_BEFORE_SERVE},
-		{"GET", "/refresh_token", auth.GfJWTMiddleware.RefreshHandler},
-		{"GET", "/hello",         hello},
+	s.BindHandler("/", works)
+	s.BindHandler("POST:/login", auth.GfJWTMiddleware.LoginHandler)
+	s.Group("/user", func(g *ghttp.RouterGroup) {
+		g.Middleware(MiddlewareCORS, MiddlewareAuth)
+		g.ALL("/refresh_token", auth.GfJWTMiddleware.RefreshHandler)
+		g.ALL("/hello", hello)
 	})
 	s.SetPort(8000)
 	s.Run()

@@ -22,7 +22,10 @@ var (
 	ErrFailedTokenCreation = errors.New("failed to create JWT Token")
 
 	// ErrExpiredToken indicates JWT token has expired. Can't refresh.
-	ErrExpiredToken = errors.New("abc")
+	ErrExpiredToken = errors.New("token is expired")
+
+	// ErrInvalidToken indicates JWT token has invalid. Can't refresh.
+	ErrInvalidToken = errors.New("token is invalid")
 
 	// ErrEmptyAuthHeader can be thrown if authing with a HTTP header, the Auth header needs to be set
 	ErrEmptyAuthHeader = errors.New("auth header is empty")

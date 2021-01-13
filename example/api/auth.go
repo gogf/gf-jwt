@@ -1,7 +1,6 @@
 package api
 
 import (
-	"errors"
 	jwt "github.com/gogf/gf-jwt"
 	"github.com/gogf/gf-jwt/example/model"
 	"github.com/gogf/gf-jwt/example/service"
@@ -41,9 +40,6 @@ func init() {
 		glog.Fatal("JWT Error:" + err.Error())
 	}
 	Auth = authMiddleware
-	// 覆盖中文
-	jwt.ErrEmptyCookieToken = errors.New("token为空")
-	jwt.ErrExpiredToken = errors.New("token已过期")
 }
 
 // PayloadFunc is a callback function that will be called during login.

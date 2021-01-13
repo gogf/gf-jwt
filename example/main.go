@@ -22,6 +22,7 @@ func main() {
 	s.Group("/user", func(g *ghttp.RouterGroup) {
 		g.Middleware(service.Middleware.CORS, middlewareAuth)
 		g.ALL("/refresh_token", api.Auth.RefreshHandler)
+		g.ALL("/logout", api.Auth.LogoutHandler)
 		g.ALL("/hello", api.Work.Hello)
 	})
 	s.SetPort(8000)

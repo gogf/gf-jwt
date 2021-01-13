@@ -1,15 +1,16 @@
 package api
 
-import "github.com/gogf/gf/net/ghttp"
-
+import (
+	"github.com/gogf/gf/net/ghttp"
+)
 
 var Work = new(workApi)
 
-type workApi struct {}
+type workApi struct{}
 
 // hello should be authenticated to view.
 func (a *workApi) Hello(r *ghttp.Request) {
-	r.Response.Write(Auth.PayloadFunc)
+	r.Response.Write("Hello")
 }
 
 // works is the default router handler for web server.

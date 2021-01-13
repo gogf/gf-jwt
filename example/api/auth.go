@@ -32,6 +32,7 @@ func init() {
 		Authenticator:   Authenticator,
 		LoginResponse:   LoginResponse,
 		RefreshResponse: RefreshResponse,
+		LogoutResponse:  LogoutResponse,
 		Unauthorized:    Unauthorized,
 		IdentityHandler: IdentityHandler,
 		PayloadFunc:     PayloadFunc,
@@ -94,12 +95,21 @@ func RefreshResponse(r *ghttp.Request, code int, token string, expire time.Time)
 	r.ExitAll()
 }
 
+// LogoutResponse is used to set token blacklist.
+func LogoutResponse(r *ghttp.Request, code int) {
+	r.Response.WriteJson(g.Map{
+		"code":    code,
+		"message": "success",
+	})
+	r.ExitAll()
+}
+
 // Authenticator is used to validate login parameters.
 // It must return user data as user identifier, it will be stored in Claim Array.
 // Check error (e) to determine the appropriate error message.
 func Authenticator(r *ghttp.Request) (interface{}, error) {
 	var (
-		apiReq *model.ApiLoginReq
+		apiReq     *model.ApiLoginReq
 		serviceReq *model.ServiceLoginReq
 	)
 	if err := r.Parse(&apiReq); err != nil {

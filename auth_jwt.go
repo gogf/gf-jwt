@@ -2,10 +2,11 @@ package jwt
 
 import (
 	"crypto/rsa"
-	"errors"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/gogf/gf/crypto/gmd5"
 	"github.com/gogf/gf/frame/g"
 	"github.com/gogf/gf/net/ghttp"
+	"github.com/gogf/gf/os/gcache"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -68,6 +69,9 @@ type GfJWTMiddleware struct {
 	// User can define own RefreshResponse func.
 	RefreshResponse func(*ghttp.Request, int, string, time.Time)
 
+	// User can define own LogoutResponse func.
+	LogoutResponse func(*ghttp.Request, int)
+
 	// Set the identity handler function
 	IdentityHandler func(*ghttp.Request) interface{}
 
@@ -128,65 +132,10 @@ type GfJWTMiddleware struct {
 }
 
 var (
-	// ErrMissingSecretKey indicates Secret key is required
-	ErrMissingSecretKey = errors.New("secret key is required")
-
-	// ErrForbidden when HTTP status 403 is given
-	ErrForbidden = errors.New("you don't have permission to access this resource")
-
-	// ErrMissingAuthenticatorFunc indicates Authenticator is required
-	ErrMissingAuthenticatorFunc = errors.New("GfJWTMiddleware.Authenticator func is undefined")
-
-	// ErrMissingLoginValues indicates a user tried to authenticate without username or password
-	ErrMissingLoginValues = errors.New("missing Username or Password")
-
-	// ErrFailedAuthentication indicates authentication failed, could be faulty username or password
-	ErrFailedAuthentication = errors.New("incorrect Username or Password")
-
-	// ErrFailedTokenCreation indicates JWT Token failed to create, reason unknown
-	ErrFailedTokenCreation = errors.New("failed to create JWT Token")
-
-	// ErrExpiredToken indicates JWT token has expired. Can't refresh.
-	ErrExpiredToken = errors.New("token is expired")
-
-	// ErrEmptyAuthHeader can be thrown if authing with a HTTP header, the Auth header needs to be set
-	ErrEmptyAuthHeader = errors.New("auth header is empty")
-
-	// ErrMissingExpField missing exp field in token
-	ErrMissingExpField = errors.New("missing exp field")
-
-	// ErrWrongFormatOfExp field must be float64 format
-	ErrWrongFormatOfExp = errors.New("exp must be float64 format")
-
-	// ErrInvalidAuthHeader indicates auth header is invalid, could for example have the wrong Realm name
-	ErrInvalidAuthHeader = errors.New("auth header is invalid")
-
-	// ErrEmptyQueryToken can be thrown if authing with URL Query, the query token variable is empty
-	ErrEmptyQueryToken = errors.New("query token is empty")
-
-	// ErrEmptyCookieToken can be thrown if authing with a cookie, the token cokie is empty
-	ErrEmptyCookieToken = errors.New("cookie token is empty")
-
-	// ErrEmptyParamToken can be thrown if authing with parameter in path, the parameter in path is empty
-	ErrEmptyParamToken = errors.New("parameter token is empty")
-
-	// ErrInvalidSigningAlgorithm indicates signing algorithm is invalid, needs to be HS256, HS384, HS512, RS256, RS384 or RS512
-	ErrInvalidSigningAlgorithm = errors.New("invalid signing algorithm")
-
-	// ErrNoPrivKeyFile indicates that the given private key is unreadable
-	ErrNoPrivKeyFile = errors.New("private key file unreadable")
-
-	// ErrNoPubKeyFile indicates that the given public key is unreadable
-	ErrNoPubKeyFile = errors.New("public key file unreadable")
-
-	// ErrInvalidPrivKey indicates that the given private key is invalid
-	ErrInvalidPrivKey = errors.New("private key invalid")
-
-	// ErrInvalidPubKey indicates the the given public key is invalid
-	ErrInvalidPubKey = errors.New("public key invalid")
-
 	// IdentityKey default identity key
 	IdentityKey = "identity"
+	// The blacklist stores tokens that have not expired but have been deactivated.
+	blacklist = gcache.New()
 )
 
 // New for check error with GfJWTMiddleware
@@ -303,6 +252,15 @@ func (mw *GfJWTMiddleware) MiddlewareInit() error {
 		}
 	}
 
+	if mw.LogoutResponse == nil {
+		mw.LogoutResponse = func(r *ghttp.Request, code int) {
+			r.Response.WriteJson(g.Map{
+				"code":    http.StatusOK,
+				"message": "success",
+			})
+		}
+	}
+
 	if mw.IdentityKey == "" {
 		mw.IdentityKey = IdentityKey
 	}
@@ -346,7 +304,7 @@ func (mw *GfJWTMiddleware) MiddlewareFunc() ghttp.HandlerFunc {
 }
 
 func (mw *GfJWTMiddleware) middlewareImpl(r *ghttp.Request) {
-	claims, err := mw.GetClaimsFromJWT(r)
+	claims, token, err := mw.GetClaimsFromJWT(r)
 	if err != nil {
 		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, r))
 		return
@@ -367,6 +325,17 @@ func (mw *GfJWTMiddleware) middlewareImpl(r *ghttp.Request) {
 		return
 	}
 
+	in, err := mw.inBlacklist(token)
+	if err != nil {
+		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, r))
+		return
+	}
+
+	if in {
+		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrInvalidToken, r))
+		return
+	}
+
 	r.SetParam("JWT_PAYLOAD", claims)
 	identity := mw.IdentityHandler(r)
 
@@ -383,11 +352,11 @@ func (mw *GfJWTMiddleware) middlewareImpl(r *ghttp.Request) {
 }
 
 // GetClaimsFromJWT get claims from JWT token
-func (mw *GfJWTMiddleware) GetClaimsFromJWT(r *ghttp.Request) (MapClaims, error) {
+func (mw *GfJWTMiddleware) GetClaimsFromJWT(r *ghttp.Request) (MapClaims, string, error) {
 	token, err := mw.ParseToken(r)
 
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if mw.SendAuthorization {
@@ -402,7 +371,7 @@ func (mw *GfJWTMiddleware) GetClaimsFromJWT(r *ghttp.Request) (MapClaims, error)
 		claims[key] = value
 	}
 
-	return claims, nil
+	return claims, token.Raw, nil
 }
 
 // LoginHandler can be used by clients to get a jwt token.
@@ -461,6 +430,25 @@ func (mw *GfJWTMiddleware) signedString(token *jwt.Token) (string, error) {
 	return tokenString, err
 }
 
+// LogoutHandler can be used to logout a token. The token still needs to be valid on logout.
+// Logout the token puts the unexpired token on a blacklist.
+func (mw *GfJWTMiddleware) LogoutHandler(r *ghttp.Request) {
+	claims, token, err := mw.CheckIfTokenExpire(r)
+	if err != nil {
+		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, r))
+		return
+	}
+
+	err = mw.setBlacklist(token, claims)
+
+	if err != nil {
+		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, r))
+		return
+	}
+
+	mw.LogoutResponse(r, http.StatusOK)
+}
+
 // RefreshHandler can be used to refresh a token. The token still needs to be valid on refresh.
 // Shall be put under an endpoint that is using the GfJWTMiddleware.
 // Reply will be of the form {"token": "TOKEN"}.
@@ -476,7 +464,7 @@ func (mw *GfJWTMiddleware) RefreshHandler(r *ghttp.Request) {
 
 // RefreshToken refresh token and check if token is expired
 func (mw *GfJWTMiddleware) RefreshToken(r *ghttp.Request) (string, time.Time, error) {
-	claims, err := mw.CheckIfTokenExpire(r)
+	claims, token, err := mw.CheckIfTokenExpire(r)
 	if err != nil {
 		return "", time.Now(), err
 	}
@@ -504,11 +492,17 @@ func (mw *GfJWTMiddleware) RefreshToken(r *ghttp.Request) (string, time.Time, er
 		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxage)*time.Second)
 	}
 
+	// set old token in blacklist
+	err = mw.setBlacklist(token, claims)
+	if err != nil {
+		return "", time.Now(), err
+	}
+
 	return tokenString, expire, nil
 }
 
 // CheckIfTokenExpire check if token expire
-func (mw *GfJWTMiddleware) CheckIfTokenExpire(r *ghttp.Request) (jwt.MapClaims, error) {
+func (mw *GfJWTMiddleware) CheckIfTokenExpire(r *ghttp.Request) (jwt.MapClaims, string, error) {
 	token, err := mw.ParseToken(r)
 
 	if err != nil {
@@ -519,8 +513,18 @@ func (mw *GfJWTMiddleware) CheckIfTokenExpire(r *ghttp.Request) (jwt.MapClaims, 
 		// (see https://github.com/appleboy/gin-jwt/issues/176)
 		validationErr, ok := err.(*jwt.ValidationError)
 		if !ok || validationErr.Errors != jwt.ValidationErrorExpired {
-			return nil, err
+			return nil, "", err
 		}
+	}
+
+	in, err := mw.inBlacklist(token.Raw)
+
+	if err != nil {
+		return nil, "", err
+	}
+
+	if in {
+		return nil, "", ErrInvalidToken
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
@@ -528,10 +532,10 @@ func (mw *GfJWTMiddleware) CheckIfTokenExpire(r *ghttp.Request) (jwt.MapClaims, 
 	origIat := int64(claims["orig_iat"].(float64))
 
 	if origIat < mw.TimeFunc().Add(-mw.MaxRefresh).Unix() {
-		return nil, ErrExpiredToken
+		return nil, "", ErrExpiredToken
 	}
 
-	return claims, nil
+	return claims, token.Raw, nil
 }
 
 // TokenGenerator method that clients can use to get a jwt token.
@@ -651,6 +655,41 @@ func (mw *GfJWTMiddleware) unauthorized(r *ghttp.Request, code int, message stri
 		r.ExitAll()
 	}
 
+}
+
+func (mw *GfJWTMiddleware) setBlacklist(token string, claims jwt.MapClaims) error {
+	// The goal of MD5 is to reduce the key length.
+	token, err := gmd5.EncryptString(token)
+
+	if err != nil {
+		return err
+	}
+
+	exp := int64(claims["exp"].(float64))
+
+	// Global gcache
+	err = blacklist.Set(token, true, time.Unix(exp, 0).Sub(mw.TimeFunc()))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (mw *GfJWTMiddleware) inBlacklist(token string) (bool, error) {
+	// The goal of MD5 is to reduce the key length.
+	tokenRaw, err := gmd5.EncryptString(token)
+
+	if err != nil {
+		return false, nil
+	}
+
+	// Global gcache
+	if in, err := blacklist.Contains(tokenRaw); err != nil {
+		return false, nil
+	} else {
+		return in, nil
+	}
 }
 
 // ExtractClaims help to extract the JWT claims

@@ -1,23 +1,21 @@
-package auth
+package api
 
 import (
+	"errors"
 	jwt "github.com/gogf/gf-jwt"
+	"github.com/gogf/gf-jwt/example/model"
+	"github.com/gogf/gf-jwt/example/service"
 	"github.com/gogf/gf/frame/g"
 	"github.com/gogf/gf/net/ghttp"
 	"github.com/gogf/gf/os/glog"
-	"github.com/gogf/gf/util/gvalid"
+	"github.com/gogf/gf/util/gconv"
 	"net/http"
 	"time"
 )
 
 var (
 	// The underlying JWT middleware.
-	GfJWTMiddleware *jwt.GfJWTMiddleware
-	// Customized login parameter validation rules.
-	ValidationRules = g.Map {
-		"username": "required",
-		"password": "required",
-	}
+	Auth *jwt.GfJWTMiddleware
 )
 
 // Initialization function,
@@ -42,7 +40,10 @@ func init() {
 	if err != nil {
 		glog.Fatal("JWT Error:" + err.Error())
 	}
-	GfJWTMiddleware = authMiddleware
+	Auth = authMiddleware
+	// 覆盖中文
+	jwt.ErrEmptyCookieToken = errors.New("token为空")
+	jwt.ErrExpiredToken = errors.New("token已过期")
 }
 
 // PayloadFunc is a callback function that will be called during login.
@@ -101,15 +102,20 @@ func RefreshResponse(r *ghttp.Request, code int, token string, expire time.Time)
 // It must return user data as user identifier, it will be stored in Claim Array.
 // Check error (e) to determine the appropriate error message.
 func Authenticator(r *ghttp.Request) (interface{}, error) {
-	data := r.GetMap()
-	if e := gvalid.CheckMap(data, ValidationRules); e != nil {
-		return "", jwt.ErrFailedAuthentication
+	var (
+		apiReq *model.ApiLoginReq
+		serviceReq *model.ServiceLoginReq
+	)
+	if err := r.Parse(&apiReq); err != nil {
+		return "", err
 	}
-	if data["username"] == "admin" && data["password"] == "admin" {
-		return g.Map {
-			"username": data["username"],
-			"id":       data["username"],
-		}, nil
+	if err := gconv.Struct(apiReq, &serviceReq); err != nil {
+		return "", err
 	}
+
+	if user := service.User.GetUserByUsernamePassword(serviceReq); user != nil {
+		return user, nil
+	}
+
 	return nil, jwt.ErrFailedAuthentication
 }

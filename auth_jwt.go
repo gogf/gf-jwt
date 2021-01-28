@@ -129,6 +129,9 @@ type GfJWTMiddleware struct {
 
 	// CookieName allow cookie name change for development
 	CookieName string
+
+	// CacheAdapter
+	CacheAdapter gcache.Adapter
 }
 
 var (
@@ -293,6 +296,11 @@ func (mw *GfJWTMiddleware) MiddlewareInit() error {
 	if mw.Key == nil {
 		return ErrMissingSecretKey
 	}
+	
+	if mw.CacheAdapter != nil {
+		blacklist.SetAdapter(mw.CacheAdapter)
+	}
+
 	return nil
 }
 
@@ -668,7 +676,7 @@ func (mw *GfJWTMiddleware) setBlacklist(token string, claims jwt.MapClaims) erro
 	exp := int64(claims["exp"].(float64))
 
 	// Global gcache
-	err = blacklist.Set(token, true, time.Unix(exp, 0).Sub(mw.TimeFunc()))
+	err = blacklist.Set(token, true, time.Unix(exp, 0).Sub(mw.TimeFunc()).Truncate(time.Second))
 	if err != nil {
 		return err
 	}

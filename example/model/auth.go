@@ -2,7 +2,7 @@ package model
 
 /**
 API
- */
+*/
 type ApiLoginReq struct {
 	Username string
 	Password string
@@ -10,7 +10,7 @@ type ApiLoginReq struct {
 
 /**
 Service
- */
+*/
 type ServiceLoginReq struct {
 	Username string
 	Password string

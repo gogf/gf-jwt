@@ -7,12 +7,12 @@ import (
 
 var User = new(userService)
 
-type userService struct {}
+type userService struct{}
 
 func (s *userService) GetUserByUsernamePassword(serviceReq *model.ServiceLoginReq) map[string]interface{} {
 	if serviceReq.Username == "admin" && serviceReq.Password == "admin" {
 		return g.Map{
-			"id": 1,
+			"id":       1,
 			"username": "admin",
 		}
 	}

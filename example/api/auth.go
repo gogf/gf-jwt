@@ -34,8 +34,8 @@ func init() {
 		RefreshResponse: RefreshResponse,
 		LogoutResponse:  LogoutResponse,
 		Unauthorized:    Unauthorized,
-		IdentityHandler: IdentityHandler,
 		PayloadFunc:     PayloadFunc,
+		IdentityHandler: IdentityHandler,
 	})
 	if err != nil {
 		glog.Fatal("JWT Error:" + err.Error())
@@ -60,10 +60,11 @@ func PayloadFunc(data interface{}) jwt.MapClaims {
 	return claims
 }
 
-// IdentityHandler sets the identity for JWT.
+// IdentityHandler get the identity from JWT and set the identity for every request
+// Using this function, by r.GetParam("id") get identity
 func IdentityHandler(r *ghttp.Request) interface{} {
 	claims := jwt.ExtractClaims(r)
-	return claims["id"]
+	return claims[Auth.IdentityKey]
 }
 
 // Unauthorized is used to define customized Unauthorized callback function.
@@ -106,6 +107,7 @@ func LogoutResponse(r *ghttp.Request, code int) {
 
 // Authenticator is used to validate login parameters.
 // It must return user data as user identifier, it will be stored in Claim Array.
+// if your identityKey is 'id', your user data must have 'id'
 // Check error (e) to determine the appropriate error message.
 func Authenticator(r *ghttp.Request) (interface{}, error) {
 	var (

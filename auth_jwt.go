@@ -296,7 +296,7 @@ func (mw *GfJWTMiddleware) MiddlewareInit() error {
 	if mw.Key == nil {
 		return ErrMissingSecretKey
 	}
-	
+
 	if mw.CacheAdapter != nil {
 		blacklist.SetAdapter(mw.CacheAdapter)
 	}
@@ -408,9 +408,14 @@ func (mw *GfJWTMiddleware) LoginHandler(r *ghttp.Request) {
 		}
 	}
 
+	if _, ok := claims[mw.IdentityKey]; !ok {
+		mw.unauthorized(r, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrMissingIdentity, r))
+		return
+	}
+
 	expire := mw.TimeFunc().Add(mw.Timeout)
 	claims["exp"] = expire.Unix()
-	claims["orig_iat"] = mw.TimeFunc().Unix()
+	claims["iat"] = mw.TimeFunc().Unix()
 	tokenString, err := mw.signedString(token)
 
 	if err != nil {
@@ -487,7 +492,7 @@ func (mw *GfJWTMiddleware) RefreshToken(r *ghttp.Request) (string, time.Time, er
 
 	expire := mw.TimeFunc().Add(mw.Timeout)
 	newClaims["exp"] = expire.Unix()
-	newClaims["orig_iat"] = mw.TimeFunc().Unix()
+	newClaims["iat"] = mw.TimeFunc().Unix()
 	tokenString, err := mw.signedString(newToken)
 
 	if err != nil {
@@ -537,7 +542,7 @@ func (mw *GfJWTMiddleware) CheckIfTokenExpire(r *ghttp.Request) (jwt.MapClaims, 
 
 	claims := token.Claims.(jwt.MapClaims)
 
-	origIat := int64(claims["orig_iat"].(float64))
+	origIat := int64(claims["iat"].(float64))
 
 	if origIat < mw.TimeFunc().Add(-mw.MaxRefresh).Unix() {
 		return nil, "", ErrExpiredToken
@@ -559,7 +564,7 @@ func (mw *GfJWTMiddleware) TokenGenerator(data interface{}) (string, time.Time, 
 
 	expire := mw.TimeFunc().UTC().Add(mw.Timeout)
 	claims["exp"] = expire.Unix()
-	claims["orig_iat"] = mw.TimeFunc().Unix()
+	claims["iat"] = mw.TimeFunc().Unix()
 	tokenString, err := mw.signedString(token)
 	if err != nil {
 		return "", time.Time{}, err

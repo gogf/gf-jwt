@@ -62,4 +62,7 @@ var (
 
 	// ErrInvalidPubKey indicates the the given public key is invalid
 	ErrInvalidPubKey = errors.New("public key invalid")
+
+	// ErrMissingIdentity identity key and identity value is null
+	ErrMissingIdentity = errors.New("payload don't have identity key and identity value")
 )

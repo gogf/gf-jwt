@@ -16,13 +16,15 @@ func middlewareAuth(r *ghttp.Request) {
 func main() {
 	s := g.Server()
 	s.BindHandler("/", api.Work.Works)
-	s.BindHandler("POST:/login", api.Auth.LoginHandler)
-	s.Group("/user", func(g *ghttp.RouterGroup) {
-		g.Middleware(service.Middleware.CORS, middlewareAuth)
-		g.ALL("/info", api.Work.Info)
+	s.Group("/", func(g *ghttp.RouterGroup) {
+		g.ALL("/login", api.Auth.LoginHandler)
 		g.ALL("/refresh_token", api.Auth.RefreshHandler)
 		g.ALL("/logout", api.Auth.LogoutHandler)
 	})
-	s.SetPort(8000)
+	s.Group("/user", func(g *ghttp.RouterGroup) {
+		g.Middleware(service.Middleware.CORS, middlewareAuth)
+		g.ALL("/info", api.Work.Info)
+	})
+	s.SetPort(8111)
 	s.Run()
 }

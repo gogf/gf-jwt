@@ -680,8 +680,12 @@ func (mw *GfJWTMiddleware) setBlacklist(token string, claims jwt.MapClaims) erro
 
 	exp := int64(claims["exp"].(float64))
 
-	// Global gcache
-	err = blacklist.Set(token, true, time.Unix(exp, 0).Sub(mw.TimeFunc()).Truncate(time.Second))
+	// save duration time = (exp + max_refresh) - now
+	duration := time.Unix(exp, 0).Add(mw.MaxRefresh).Sub(mw.TimeFunc()).Truncate(time.Second)
+
+	// global gcache
+	err = blacklist.Set(token, true, duration)
+
 	if err != nil {
 		return err
 	}

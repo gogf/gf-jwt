@@ -2,15 +2,16 @@ package jwt
 
 import (
 	"crypto/rsa"
+	"io/ioutil"
+	"net/http"
+	"strings"
+	"time"
+	
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gogf/gf/crypto/gmd5"
 	"github.com/gogf/gf/frame/g"
 	"github.com/gogf/gf/net/ghttp"
 	"github.com/gogf/gf/os/gcache"
-	"io/ioutil"
-	"net/http"
-	"strings"
-	"time"
 )
 
 // MapClaims type that uses the map[string]interface{} for JSON decoding
@@ -54,7 +55,7 @@ type GfJWTMiddleware struct {
 
 	// Callback function that will be called during login.
 	// Using this function it is possible to add additional payload data to the webtoken.
-	// The data is then made available during requests via c.Get("JWT_PAYLOAD").
+	// The data is then made available during requests via c.Get(jwt.PayloadKey).
 	// Note that the payload is not encrypted.
 	// The attributes mentioned on jwt.io can't be used as keys for the map.
 	// Optional, by default no additional data will be set.
@@ -135,6 +136,10 @@ type GfJWTMiddleware struct {
 }
 
 var (
+	// TokenKey default jwt token key in params
+	TokenKey = "JWT_TOKEN"
+	// PayloadKey default jwt payload key in params
+	PayloadKey = "JWT_PAYLOAD"
 	// IdentityKey default identity key
 	IdentityKey = "identity"
 	// The blacklist stores tokens that have not expired but have been deactivated.
@@ -344,7 +349,7 @@ func (mw *GfJWTMiddleware) middlewareImpl(r *ghttp.Request) {
 		return
 	}
 
-	r.SetParam("JWT_PAYLOAD", claims)
+	r.SetParam(PayloadKey, claims)
 	identity := mw.IdentityHandler(r)
 
 	if identity != nil {
@@ -368,7 +373,7 @@ func (mw *GfJWTMiddleware) GetClaimsFromJWT(r *ghttp.Request) (MapClaims, string
 	}
 
 	if mw.SendAuthorization {
-		token := r.GetString("JWT_TOKEN")
+		token := r.GetString(TokenKey)
 		if len(token) > 0 {
 			r.Header.Set("Authorization", mw.TokenHeadName+" "+token)
 		}
@@ -655,7 +660,7 @@ func (mw *GfJWTMiddleware) ParseToken(r *ghttp.Request) (*jwt.Token, error) {
 		}
 
 		// save token string if vaild
-		r.SetParam("JWT_TOKEN", token)
+		r.SetParam(TokenKey, token)
 
 		return mw.Key, nil
 	})
@@ -711,13 +716,13 @@ func (mw *GfJWTMiddleware) inBlacklist(token string) (bool, error) {
 
 // ExtractClaims help to extract the JWT claims
 func ExtractClaims(r *ghttp.Request) MapClaims {
-	claims := r.GetParam("JWT_PAYLOAD")
+	claims := r.GetParam(PayloadKey)
 	return claims.(MapClaims)
 }
 
 // GetToken help to get the JWT token string
 func GetToken(r *ghttp.Request) string {
-	token := r.GetString("JWT_TOKEN")
+	token := r.GetString(TokenKey)
 	if len(token) == 0 {
 		return ""
 	}

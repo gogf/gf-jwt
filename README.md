@@ -21,29 +21,26 @@ Import
 import "github.com/gogf/gf-jwt"
 ```
 
-## Example
-
-Check demo [example/auth/auth.go](example/auth/auth.go) and use `ExtractClaims` to customize user data.
-
-[embedmd]:# (example/auth/auth.go go)
-
-
 ## Demo
 
-Run `example/server/server.go` on the `8000` port.
+Run `example/main.go` on the `8000` port.
 
 ```bash
-$ go run example/server/server.go
+$ go run example/main.go
 ```
 
 ![api screenshot](screenshot/server.png)
 
-Test the effect on the command line via [httpie](https://github.com/jkbrzt/httpie).
+Test the effect on the command line via [httpie](https://github.com/jkbrzt/httpie) or curl.
 
 ### Login interface:
 
 ```bash
 $ http -v --form POST localhost:8000/login username=admin password=admin
+```
+or
+```bash
+$ curl -X POST -d 'username=admin&password=admin' localhost:8000/login
 ```
 
 Command line output
@@ -53,36 +50,32 @@ Command line output
 ### Refresh token interface:
 
 ```bash
-$ http -v -f GET localhost:8000/user/refresh_token "Authorization:Bearer xxxxxxxxx" "Content-Type: application/json"
+$ http -v -f GET localhost:8000/refresh_token "Authorization:Bearer xxxxxxxxx" "Content-Type: application/json"
+```
+or
+```bash
+$ curl -H 'Authorization:Bearer xxxxxxxxx' -X POST localhost:8000/refresh_token
 ```
 
 Command line output
 
 ![api screenshot](screenshot/refresh_token.png)
 
-### hello interface
+### User info interface
 
-We test the return of the hello interface with the username `admin` and password `admin`
+We test the return of the info interface with the username `admin` and password `admin`
 
 ```bash
-$ http -f GET localhost:8000/user/hello "Authorization:Bearer xxxxxxxxx" "Content-Type: application/json"
+$ http -f GET localhost:8000/user/info "Authorization:Bearer xxxxxxxxx" "Content-Type: application/json"
+```
+or
+```bash
+$ curl -H 'Authorization:Bearer xxxxxx' -X POST localhost:8000/user/info
 ```
 
 Command line output
 
 ![api screenshot](screenshot/hello.png)
-
-### User Authentication Interface
-
-We use an unauthorized token to test the return of the hello interface.
-
-```bash
-$ http -f GET localhost:8000/user/hello "Authorization:Bearer xxxxxxxxx" "Content-Type: application/json"
-```
-
-Command line output
-
-![api screenshot](screenshot/401.png)
 
 
 Thanks again [https://github.com/appleboy/gin-jwt](https://github.com/appleboy/gin-jwt)

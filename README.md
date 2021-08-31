@@ -77,5 +77,20 @@ Command line output
 
 ![api screenshot](screenshot/hello.png)
 
+### User Authentication Interface
+
+We use an unauthorized token to test the return of the hello interface.
+
+```bash
+$ http -f GET localhost:8000/user/info "Authorization:Bearer xxxxxxxxx" "Content-Type: application/json"
+```
+or
+```
+curl -H 'Authorization:Bearer xxxxxx' -X POST localhost:8000/user/info
+```
+
+Command line output
+
+![api screenshot](screenshot/401.png)
 
 Thanks again [https://github.com/appleboy/gin-jwt](https://github.com/appleboy/gin-jwt)

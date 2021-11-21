@@ -25,6 +25,6 @@ func main() {
 		g.Middleware(service.Middleware.CORS, middlewareAuth)
 		g.ALL("/info", api.Work.Info)
 	})
-	s.SetPort(8111)
+	s.SetPort(8000)
 	s.Run()
 }

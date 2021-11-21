@@ -21,29 +21,28 @@ $ go get github.com/gogf/gf-jwt
 import "github.com/gogf/gf-jwt"
 ```
 
-## 例子
-
-查看示例 [example/auth/auth.go](example/auth/auth.go) , 使用 `ExtractClaims` 可以自定义用户数据.
-
-[embedmd]:# (example/auth/auth.go go)
-
 ## Demo
 
-运行 `example/server/server.go` 在 `8000`端口.
+运行 `example/main.go` 在 `8000`端口.
 
 ```bash
-$ go run example/server/server.go
+$ go run example/main.go
 ```
 
 ![api screenshot](screenshot/server.png)
 
-通过 [httpie](https://github.com/jkbrzt/httpie) ,在命令行来测试下效果.
+通过 [httpie](https://github.com/jkbrzt/httpie) 或者 curl, 在命令行来测试下效果.
 
 ### 登录接口:
 
 ```bash
 $ http -v --form  POST localhost:8000/login username=admin password=admin
 ```
+或者
+```bash
+$ curl -X POST -d 'username=admin&password=admin' localhost:8000/login
+```
+
 
 命令行输出
 
@@ -52,19 +51,28 @@ $ http -v --form  POST localhost:8000/login username=admin password=admin
 ### 刷新 token 接口:
 
 ```bash
-$ http -v -f GET localhost:8000/user/refresh_token "Authorization:Bearer xxxxxxxxx"  "Content-Type: application/json"
+$ http -v -f GET localhost:8000/refresh_token "Authorization:Bearer xxxxxxxxx"  "Content-Type: application/json"
 ```
+或者
+```bash
+$ curl -H 'Authorization:Bearer xxxxxxxxx' -X POST localhost:8000/refresh_token
+```
+
 
 命令行输出
 
 ![api screenshot](screenshot/refresh_token.png)
 
-### hello 接口
+### 用户验证接口
 
 我们使用用户名 `admin` 和密码 `admin` 测试一下 hello 接口的返回
 
 ```bash
-$ http -f GET localhost:8000/user/hello "Authorization:Bearer xxxxxxxxx"  "Content-Type: application/json"
+$ http -f GET localhost:8000/user/info "Authorization:Bearer xxxxxxxxx"  "Content-Type: application/json"
+```
+或者
+```bash
+$ curl -H 'Authorization:Bearer xxxxxx' -X POST localhost:8000/user/info
 ```
 
 命令行输出
@@ -76,7 +84,11 @@ $ http -f GET localhost:8000/user/hello "Authorization:Bearer xxxxxxxxx"  "Conte
 我们用未授权的 token 来测试 hello 接口的返回
 
 ```bash
-$ http -f GET localhost:8000/user/hello "Authorization:Bearer xxxxxxxxx"  "Content-Type: application/json"
+$ http -f GET localhost:8000/user/info "Authorization:Bearer xxxxxxxxx"  "Content-Type: application/json"
+```
+或者
+```bash
+$ curl -H 'Authorization:Bearer xxxxxx' -X POST localhost:8000/user/info
 ```
 
 命令行输出

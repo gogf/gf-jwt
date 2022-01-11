@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"context"
 	"crypto/rsa"
 	"io/ioutil"
 	"net/http"
@@ -8,10 +9,10 @@ import (
 	"time"
 	
 	"github.com/dgrijalva/jwt-go"
-	"github.com/gogf/gf/crypto/gmd5"
-	"github.com/gogf/gf/frame/g"
-	"github.com/gogf/gf/net/ghttp"
-	"github.com/gogf/gf/os/gcache"
+	"github.com/gogf/gf/v2/crypto/gmd5"
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/net/ghttp"
+	"github.com/gogf/gf/v2/os/gcache"
 )
 
 // MapClaims type that uses the map[string]interface{} for JSON decoding
@@ -373,7 +374,7 @@ func (mw *GfJWTMiddleware) GetClaimsFromJWT(r *ghttp.Request) (MapClaims, string
 	}
 
 	if mw.SendAuthorization {
-		token := r.GetString(TokenKey)
+		token := r.GetForm(TokenKey).String()
 		if len(token) > 0 {
 			r.Header.Set("Authorization", mw.TokenHeadName+" "+token)
 		}
@@ -594,7 +595,7 @@ func (mw *GfJWTMiddleware) jwtFromHeader(r *ghttp.Request, key string) (string, 
 }
 
 func (mw *GfJWTMiddleware) jwtFromQuery(r *ghttp.Request, key string) (string, error) {
-	token := r.GetString(key)
+	token := r.GetForm(TokenKey).String()
 
 	if token == "" {
 		return "", ErrEmptyQueryToken
@@ -604,7 +605,7 @@ func (mw *GfJWTMiddleware) jwtFromQuery(r *ghttp.Request, key string) (string, e
 }
 
 func (mw *GfJWTMiddleware) jwtFromCookie(r *ghttp.Request, key string) (string, error) {
-	cookie := r.Cookie.Get(key)
+	cookie := r.Cookie.Get(key).String()
 
 	if cookie == "" {
 		return "", ErrEmptyCookieToken
@@ -614,7 +615,7 @@ func (mw *GfJWTMiddleware) jwtFromCookie(r *ghttp.Request, key string) (string, 
 }
 
 func (mw *GfJWTMiddleware) jwtFromParam(r *ghttp.Request, key string) (string, error) {
-	token := r.GetString(key)
+	token := r.GetForm(key).String()
 	if token == "" {
 		return "", ErrEmptyParamToken
 	}
@@ -689,7 +690,8 @@ func (mw *GfJWTMiddleware) setBlacklist(token string, claims jwt.MapClaims) erro
 	duration := time.Unix(exp, 0).Add(mw.MaxRefresh).Sub(mw.TimeFunc()).Truncate(time.Second)
 
 	// global gcache
-	err = blacklist.Set(token, true, duration)
+	ctx := context.Background()
+	err = blacklist.Set(ctx,token, true, duration)
 
 	if err != nil {
 		return err
@@ -705,9 +707,9 @@ func (mw *GfJWTMiddleware) inBlacklist(token string) (bool, error) {
 	if err != nil {
 		return false, nil
 	}
-
+	ctx := context.Background()
 	// Global gcache
-	if in, err := blacklist.Contains(tokenRaw); err != nil {
+	if in, err := blacklist.Contains(ctx,tokenRaw); err != nil {
 		return false, nil
 	} else {
 		return in, nil
@@ -716,13 +718,13 @@ func (mw *GfJWTMiddleware) inBlacklist(token string) (bool, error) {
 
 // ExtractClaims help to extract the JWT claims
 func ExtractClaims(r *ghttp.Request) MapClaims {
-	claims := r.GetParam(PayloadKey)
-	return claims.(MapClaims)
+	claims := r.GetParam(PayloadKey).MapStrAny()
+	return claims
 }
 
 // GetToken help to get the JWT token string
 func GetToken(r *ghttp.Request) string {
-	token := r.GetString(TokenKey)
+	token := r.GetForm(TokenKey).String()
 	if len(token) == 0 {
 		return ""
 	}

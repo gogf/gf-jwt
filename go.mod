@@ -1,9 +1,4 @@
-module github.com/gogf/gf-jwt
+module github.com/gogf/gf-jwt/v2
 
-require (
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/gogf/gf v1.15.3
-	github.com/mattn/go-runewidth v0.0.12 // indirect
-)
 
-go 1.10
+go 1.15

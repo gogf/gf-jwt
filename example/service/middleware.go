@@ -1,12 +1,10 @@
 package service
 
-import (
-	"github.com/gogf/gf/net/ghttp"
-)
+import "github.com/gogf/gf/v2/net/ghttp"
 
 var Middleware = new(middlewareService)
 
-type middlewareService struct {}
+type middlewareService struct{}
 
 func (s *middlewareService) CORS(r *ghttp.Request) {
 	r.Response.CORSDefault()

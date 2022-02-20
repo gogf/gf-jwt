@@ -1,15 +1,15 @@
 package api
 
 import (
-	"github.com/gogf/gf/frame/g"
-	"github.com/gogf/gf/net/ghttp"
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/net/ghttp"
 )
 
 var Work = new(workApi)
 
 type workApi struct{}
 
-// works is the default router handler for web server.
+// Works works is the default router handler for web server.
 func (a *workApi) Works(r *ghttp.Request) {
 	data := g.Map{
 		"message": "It works!",

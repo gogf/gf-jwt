@@ -734,6 +734,5 @@ func GetToken(r *ghttp.Request) string {
 	if len(token) == 0 {
 		return ""
 	}
-
 	return token
 }

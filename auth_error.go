@@ -63,9 +63,15 @@ var (
 	// ErrInvalidPrivKey indicates that the given private key is invalid
 	ErrInvalidPrivKey = errors.New("private key invalid")
 
-	// ErrInvalidPubKey indicates the the given public key is invalid
+	// ErrInvalidPubKey indicates the given public key is invalid
 	ErrInvalidPubKey = errors.New("public key invalid")
 
 	// ErrMissingIdentity identity key and identity value is null
 	ErrMissingIdentity = errors.New("payload don't have identity key and identity value")
+	// ErrInvalidRefreshToken refresh token is invalid
+	ErrInvalidRefreshToken = errors.New("refresh token is invalid")
+	// ErrMissingRefreshTokenIdentity payload don't have refresh token identity key and identity value
+	ErrMissingRefreshTokenIdentity = errors.New("payload don't have refresh token identity key and identity value")
+	// ErrFailedRefreshTokenCreation failed to create JWT Refresh Token
+	ErrFailedRefreshTokenCreation = errors.New("failed to create JWT Refresh Token")
 )

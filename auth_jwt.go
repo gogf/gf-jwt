@@ -7,6 +7,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/gogf/gf/v2/os/gcache"
+	"github.com/gogf/gf/v2/util/gconv"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -37,7 +38,12 @@ type GfJWTMiddleware struct {
 
 	// Duration that a jwt token is valid. Optional, defaults to one hour.
 	Timeout time.Duration
-
+	// Duration that a jwt refresh token is valid. Optional, defaults to one week.
+	RefreshTokenTimeout time.Duration
+	// Marked as refresh token
+	RefreshTokenMark string
+	// refresh token key
+	RefreshTokenKey string
 	// This field allows clients to refresh their token until MaxRefresh has passed.
 	// Note that clients can refresh their token in the last moment of MaxRefresh.
 	// This means that the maximum validity timespan for a token is TokenTime + MaxRefresh.
@@ -66,7 +72,7 @@ type GfJWTMiddleware struct {
 	Unauthorized func(*ghttp.Request, int, string)
 
 	// User can define own LoginResponse func.
-	LoginResponse func(*ghttp.Request, int, string, time.Time)
+	LoginResponse func(*ghttp.Request, int, string, time.Time, string, time.Time)
 
 	// User can define own RefreshResponse func.
 	RefreshResponse func(*ghttp.Request, int, string, time.Time)
@@ -224,6 +230,17 @@ func (mw *GfJWTMiddleware) MiddlewareInit() error {
 		mw.Timeout = time.Hour
 	}
 
+	if mw.RefreshTokenTimeout == 0 {
+		mw.RefreshTokenTimeout = time.Hour * 24 * 7
+	}
+	if mw.RefreshTokenMark == "" {
+		mw.RefreshTokenMark = "is_refresh_token"
+	}
+
+	if mw.RefreshTokenKey == "" {
+		mw.RefreshTokenKey = "refresh_token"
+	}
+
 	if mw.TimeFunc == nil {
 		mw.TimeFunc = time.Now
 	}
@@ -249,12 +266,16 @@ func (mw *GfJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.LoginResponse == nil {
-		mw.LoginResponse = func(r *ghttp.Request, code int, token string, expire time.Time) {
-			r.Response.WriteJson(g.Map{
-				"code":   http.StatusOK,
-				"token":  token,
-				"expire": expire.Format(time.RFC3339),
-			})
+		mw.LoginResponse = func(r *ghttp.Request, code int, token string, expire time.Time, refreshToken string, refreshExpire time.Time) {
+			refreshExpireKey := mw.RefreshTokenKey + "_expire"
+			output := g.Map{
+				"code":             http.StatusOK,
+				"token":            token,
+				"expire":           expire.Format(time.RFC3339),
+				mw.RefreshTokenKey: refreshToken,
+				refreshExpireKey:   refreshExpire.Format(time.RFC3339),
+			}
+			r.Response.WriteJson(output)
 		}
 	}
 
@@ -414,10 +435,20 @@ func (mw *GfJWTMiddleware) LoginHandler(r *ghttp.Request) {
 	// Create the token
 	token := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
 	claims := token.Claims.(jwt.MapClaims)
-
+	// Create the refresh token
+	_, refreshTokenStr, refreshExpire, refreshErr := mw.RefreshTokenGenerator(g.Map{
+		mw.RefreshTokenMark: 1,
+	})
+	if refreshErr != nil {
+		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedRefreshTokenCreation, r))
+		return
+	}
 	if mw.PayloadFunc != nil {
 		for key, value := range mw.PayloadFunc(data) {
 			claims[key] = value
+		}
+		for key, value := range mw.PayloadFunc(data) {
+			claims["refresh_"+key] = value
 		}
 	}
 
@@ -425,7 +456,6 @@ func (mw *GfJWTMiddleware) LoginHandler(r *ghttp.Request) {
 		mw.unauthorized(r, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrMissingIdentity, r))
 		return
 	}
-
 	expire := mw.TimeFunc().Add(mw.Timeout)
 	claims["exp"] = expire.Unix()
 	claims["iat"] = mw.TimeFunc().Unix()
@@ -438,11 +468,14 @@ func (mw *GfJWTMiddleware) LoginHandler(r *ghttp.Request) {
 
 	// set cookie
 	if mw.SendCookie {
-		maxage := int64(expire.Unix() - time.Now().Unix())
-		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxage)*time.Second)
+		maxAge := expire.Unix() - time.Now().Unix()
+		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxAge)*time.Second)
+		// send refresh token cookie
+		refreshTokenMaxAge := refreshExpire.Unix() - time.Now().Unix()
+		r.Cookie.SetCookie(mw.CookieName+"_refresh_token", refreshTokenStr, mw.CookieDomain, "/", time.Duration(refreshTokenMaxAge)*time.Second)
 	}
 
-	mw.LoginResponse(r, http.StatusOK, tokenString, expire)
+	mw.LoginResponse(r, http.StatusOK, tokenString, expire, refreshTokenStr, refreshExpire)
 }
 
 func (mw *GfJWTMiddleware) signedString(token *jwt.Token) (string, error) {
@@ -494,7 +527,13 @@ func (mw *GfJWTMiddleware) RefreshToken(r *ghttp.Request) (string, time.Time, er
 	if err != nil {
 		return "", time.Now(), err
 	}
-
+	if _, ok := claims[mw.RefreshTokenMark]; !ok {
+		return "", time.Now(), ErrInvalidRefreshToken
+	} else {
+		if gconv.Int(claims[mw.RefreshTokenMark]) != 1 {
+			return "", time.Now(), ErrInvalidRefreshToken
+		}
+	}
 	// Create the token
 	newToken := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
 	newClaims := newToken.Claims.(jwt.MapClaims)
@@ -514,8 +553,8 @@ func (mw *GfJWTMiddleware) RefreshToken(r *ghttp.Request) (string, time.Time, er
 
 	// set cookie
 	if mw.SendCookie {
-		maxage := int64(expire.Unix() - time.Now().Unix())
-		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxage)*time.Second)
+		maxAge := expire.Unix() - time.Now().Unix()
+		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxAge)*time.Second)
 	}
 
 	// set old token in blacklist
@@ -586,6 +625,27 @@ func (mw *GfJWTMiddleware) TokenGenerator(data interface{}) (string, time.Time, 
 	return tokenString, expire, nil
 }
 
+// RefreshTokenGenerator method that clients can use to get a jwt refresh_token.
+func (mw *GfJWTMiddleware) RefreshTokenGenerator(data interface{}) (*jwt.Token, string, time.Time, error) {
+	token := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
+	claims := token.Claims.(jwt.MapClaims)
+
+	if mw.PayloadFunc != nil {
+		for key, value := range mw.PayloadFunc(data) {
+			claims[key] = value
+		}
+	}
+
+	expire := mw.TimeFunc().UTC().Add(mw.RefreshTokenTimeout)
+	claims["exp"] = expire.Unix()
+	claims["iat"] = mw.TimeFunc().Unix()
+	tokenString, err := mw.signedString(token)
+	if err != nil {
+		return nil, "", time.Time{}, err
+	}
+
+	return token, tokenString, expire, nil
+}
 func (mw *GfJWTMiddleware) jwtFromHeader(r *ghttp.Request, key string) (string, error) {
 	authHeader := r.Header.Get(key)
 

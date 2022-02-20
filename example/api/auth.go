@@ -79,11 +79,13 @@ func Unauthorized(r *ghttp.Request, code int, message string) {
 }
 
 // LoginResponse is used to define customized login-successful callback function.
-func LoginResponse(r *ghttp.Request, code int, token string, expire time.Time) {
+func LoginResponse(r *ghttp.Request, code int, token string, expire time.Time, refreshToken string, refreshExpire time.Time) {
 	r.Response.WriteJson(g.Map{
-		"code":   http.StatusOK,
-		"token":  token,
-		"expire": expire.Format(time.RFC3339),
+		"code":                 http.StatusOK,
+		"token":                token,
+		"expire":               expire.Format(time.RFC3339),
+		"refresh_token":        refreshToken,
+		"refresh_token_expire": refreshExpire.Format(time.RFC3339),
 	})
 	r.ExitAll()
 }

@@ -2,7 +2,7 @@ package service
 
 import (
 	"github.com/gogf/gf-jwt/example/model"
-	"github.com/gogf/gf/frame/g"
+	"github.com/gogf/gf/v2/frame/g"
 )
 
 var User = new(userService)

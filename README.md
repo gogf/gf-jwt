@@ -1,7 +1,7 @@
 # gf-jwt
 GF jwt plugin
 
-This plugin is forked [https://github.com/appleboy/gin-jwt](https://github.com/appleboy/gin-jwt) plugin, modified to [https://github.com/gogf/gf](https://github.com/gogf/gf) plugin.
+This plugin is forked [https://github.com/gogf/gf-jwt](https://github.com/gogf/gf-jwt) plugin, modified to [https://github.com/gogf/gf/v2](https://github.com/gogf/gf) plugin.
 
 
 [英文](README.md) [中文](README_zh.md)

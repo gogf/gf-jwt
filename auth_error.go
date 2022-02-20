@@ -3,6 +3,9 @@ package jwt
 import "errors"
 
 var (
+	// ErrMissingContext indicates Context is required
+	ErrMissingContext = errors.New("context is required")
+
 	// ErrMissingSecretKey indicates Secret key is required
 	ErrMissingSecretKey = errors.New("secret key is required")
 

@@ -4,16 +4,17 @@ import (
 	jwt "github.com/gogf/gf-jwt"
 	"github.com/gogf/gf-jwt/example/model"
 	"github.com/gogf/gf-jwt/example/service"
-	"github.com/gogf/gf/frame/g"
-	"github.com/gogf/gf/net/ghttp"
-	"github.com/gogf/gf/os/glog"
-	"github.com/gogf/gf/util/gconv"
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/net/ghttp"
+	"github.com/gogf/gf/v2/os/gctx"
+	"github.com/gogf/gf/v2/os/glog"
+	"github.com/gogf/gf/v2/util/gconv"
 	"net/http"
 	"time"
 )
 
 var (
-	// The underlying JWT middleware.
+	// Auth The underlying JWT middleware.
 	Auth *jwt.GfJWTMiddleware
 )
 
@@ -36,9 +37,10 @@ func init() {
 		Unauthorized:    Unauthorized,
 		PayloadFunc:     PayloadFunc,
 		IdentityHandler: IdentityHandler,
+		Ctx:             gctx.New(),
 	})
 	if err != nil {
-		glog.Fatal("JWT Error:" + err.Error())
+		glog.Fatal(authMiddleware.Ctx, "JWT Error:"+err.Error())
 	}
 	Auth = authMiddleware
 }

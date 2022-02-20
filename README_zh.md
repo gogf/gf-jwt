@@ -1,7 +1,7 @@
 # gf-jwt
 gf 的 jwt 插件。
 
-这个插件是 fork 了 [https://github.com/appleboy/gin-jwt](https://github.com/appleboy/gin-jwt) 插件,修改为 [https://github.com/gogf/gf](https://github.com/gogf/gf) 插件.
+这个插件是 fork 了 [https://github.com/gogf/gf-jwt](https://github.com/gogf/gf-jwt) 插件,修改为 [https://github.com/gogf/gf/v2](https://github.com/gogf/gf/v2) 插件.
 
 
 [英文](README.md) [中文](README_zh.md)

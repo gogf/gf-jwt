@@ -1,6 +1,18 @@
 # gf-jwt v2
 
-GF jwt plugin
+## Use
+
+Download and install
+
+```sh
+$ go get github.com/gogf/gf-jwt/v2
+```
+
+Import
+
+```go
+import "github.com/gogf/gf-jwt/v2"
+```
 
 
 ![](screenshot/1.png)

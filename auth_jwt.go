@@ -51,15 +51,15 @@ type GfJWTMiddleware struct {
 	// Callback function that should perform the authentication of the user based on login info.
 	// Must return user data as user identifier, it will be stored in Claim Array. Required.
 	// Check error (e) to determine the appropriate error message.
-	Authenticator func(r *ghttp.Request) (interface{}, error)
+	Authenticator func(ctx context.Context) (interface{}, error)
 
 	// Callback function that should perform the authorization of the authenticated user. Called
 	// only after an authentication success. Must return true on success, false on failure.
 	// Optional, default to success.
-	Authorizator func(data interface{}, r *ghttp.Request) bool
+	Authorizator func(data interface{}, ctx context.Context) bool
 
 	// Callback function that will be called during login.
-	// Using this function it is possible to add additional payload data to the webtoken.
+	// Using this function it is possible to add additional payload data to the web token.
 	// The data is then made available during requests via c.Get(jwt.PayloadKey).
 	// Note that the payload is not encrypted.
 	// The attributes mentioned on jwt.io can't be used as keys for the map.
@@ -67,19 +67,10 @@ type GfJWTMiddleware struct {
 	PayloadFunc func(data interface{}) MapClaims
 
 	// User can define own Unauthorized func.
-	Unauthorized func(r *ghttp.Request, code int, message string)
-
-	// User can define own LoginResponse func.
-	LoginResponse func(r *ghttp.Request, code int, message string, time time.Time)
-
-	// User can define own LogoutResponse func.
-	LogoutResponse func(r *ghttp.Request, code int)
-
-	// User can define own RefreshResponse func.
-	RefreshResponse func(r *ghttp.Request, code int, message string, time time.Time)
+	Unauthorized func(ctx context.Context, code int, message string)
 
 	// Set the identity handler function
-	IdentityHandler func(*ghttp.Request) interface{}
+	IdentityHandler func(ctx context.Context) interface{}
 
 	// Set the identity key
 	IdentityKey string
@@ -101,7 +92,7 @@ type GfJWTMiddleware struct {
 
 	// HTTP Status messages for when something in the JWT middleware fails.
 	// Check error (e) to determine the appropriate error message.
-	HTTPStatusMessageFunc func(e error, r *ghttp.Request) string
+	HTTPStatusMessageFunc func(e error, ctx context.Context) string
 
 	// Private key file for asymmetric algorithms
 	PrivKeyFile string
@@ -154,8 +145,6 @@ type GfJWTMiddleware struct {
 
 	// CacheAdapter
 	CacheAdapter gcache.Adapter
-	// context
-	Ctx context.Context
 }
 
 var (
@@ -170,94 +159,7 @@ var (
 )
 
 // New for check error with GfJWTMiddleware
-func New(m *GfJWTMiddleware) (*GfJWTMiddleware, error) {
-	if err := m.MiddlewareInit(); err != nil {
-		return nil, err
-	}
-
-	return m, nil
-}
-
-func (mw *GfJWTMiddleware) SetCtx(ctx context.Context) *GfJWTMiddleware {
-	mw.Ctx = ctx
-	return mw
-}
-
-func (mw *GfJWTMiddleware) readKeys() error {
-	err := mw.privateKey()
-	if err != nil {
-		return err
-	}
-	err = mw.publicKey()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (mw *GfJWTMiddleware) privateKey() error {
-	var keyData []byte
-	if mw.PrivKeyFile == "" {
-		keyData = mw.PrivKeyBytes
-	} else {
-		filecontent, err := ioutil.ReadFile(mw.PrivKeyFile)
-		if err != nil {
-			return ErrNoPrivKeyFile
-		}
-		keyData = filecontent
-	}
-
-	if mw.PrivateKeyPassphrase != "" {
-		//nolint:staticcheck
-		key, err := jwt.ParseRSAPrivateKeyFromPEMWithPassword(keyData, mw.PrivateKeyPassphrase)
-		if err != nil {
-			return ErrInvalidPrivKey
-		}
-		mw.privKey = key
-		return nil
-	}
-
-	key, err := jwt.ParseRSAPrivateKeyFromPEM(keyData)
-	if err != nil {
-		return ErrInvalidPrivKey
-	}
-	mw.privKey = key
-	return nil
-}
-
-func (mw *GfJWTMiddleware) publicKey() error {
-	var keyData []byte
-	if mw.PubKeyFile == "" {
-		keyData = mw.PubKeyBytes
-	} else {
-		filecontent, err := ioutil.ReadFile(mw.PubKeyFile)
-		if err != nil {
-			return ErrNoPubKeyFile
-		}
-		keyData = filecontent
-	}
-
-	key, err := jwt.ParseRSAPublicKeyFromPEM(keyData)
-	if err != nil {
-		return ErrInvalidPubKey
-	}
-	mw.pubKey = key
-	return nil
-}
-
-func (mw *GfJWTMiddleware) usingPublicKeyAlgo() bool {
-	switch mw.SigningAlgorithm {
-	case "RS256", "RS512", "RS384":
-		return true
-	}
-	return false
-}
-
-// MiddlewareInit initialize jwt configs.
-func (mw *GfJWTMiddleware) MiddlewareInit() error {
-	if mw.Ctx == nil {
-		return ErrMissingContext
-	}
+func New(mw *GfJWTMiddleware) *GfJWTMiddleware {
 	if mw.TokenLookup == "" {
 		mw.TokenLookup = "header:Authorization"
 	}
@@ -280,44 +182,17 @@ func (mw *GfJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.Authorizator == nil {
-		mw.Authorizator = func(data interface{}, r *ghttp.Request) bool {
+		mw.Authorizator = func(data interface{}, ctx context.Context) bool {
 			return true
 		}
 	}
 
 	if mw.Unauthorized == nil {
-		mw.Unauthorized = func(r *ghttp.Request, code int, message string) {
+		mw.Unauthorized = func(ctx context.Context, code int, message string) {
+			r := g.RequestFromCtx(ctx)
 			r.Response.WriteJson(g.Map{
 				"code":    code,
 				"message": message,
-			})
-		}
-	}
-
-	if mw.LoginResponse == nil {
-		mw.LoginResponse = func(r *ghttp.Request, code int, token string, expire time.Time) {
-			r.Response.WriteJson(g.Map{
-				"code":   http.StatusOK,
-				"token":  token,
-				"expire": expire.Format(time.RFC3339),
-			})
-		}
-	}
-
-	if mw.LogoutResponse == nil {
-		mw.LogoutResponse = func(r *ghttp.Request, code int) {
-			r.Response.WriteJson(g.Map{
-				"code": http.StatusOK,
-			})
-		}
-	}
-
-	if mw.RefreshResponse == nil {
-		mw.RefreshResponse = func(r *ghttp.Request, code int, token string, expire time.Time) {
-			r.Response.WriteJson(g.Map{
-				"code":   http.StatusOK,
-				"token":  token,
-				"expire": expire.Format(time.RFC3339),
 			})
 		}
 	}
@@ -327,14 +202,14 @@ func (mw *GfJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.IdentityHandler == nil {
-		mw.IdentityHandler = func(r *ghttp.Request) interface{} {
-			claims := ExtractClaims(r)
+		mw.IdentityHandler = func(ctx context.Context) interface{} {
+			claims := ExtractClaims(ctx)
 			return claims[mw.IdentityKey]
 		}
 	}
 
 	if mw.HTTPStatusMessageFunc == nil {
-		mw.HTTPStatusMessageFunc = func(e error, r *ghttp.Request) string {
+		mw.HTTPStatusMessageFunc = func(e error, ctx context.Context) string {
 			return e.Error()
 		}
 	}
@@ -357,78 +232,34 @@ func (mw *GfJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.usingPublicKeyAlgo() {
-		return mw.readKeys()
+		if err := mw.readKeys(); err != nil {
+			panic(err)
+		}
 	}
 
 	if mw.Key == nil {
-		return ErrMissingSecretKey
+		panic(ErrMissingSecretKey)
 	}
 
 	if mw.CacheAdapter != nil {
 		blacklist.SetAdapter(mw.CacheAdapter)
 	}
 
-	return nil
+	return mw
 }
 
 // MiddlewareFunc makes GfJWTMiddleware implement the Middleware interface.
 func (mw *GfJWTMiddleware) MiddlewareFunc() ghttp.HandlerFunc {
 	return func(r *ghttp.Request) {
-		mw.middlewareImpl(r)
+		mw.middlewareImpl(r.GetCtx())
 	}
-}
-
-func (mw *GfJWTMiddleware) middlewareImpl(r *ghttp.Request) {
-	claims, token, err := mw.GetClaimsFromJWT(r)
-	if err != nil {
-		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, r))
-		return
-	}
-
-	if claims["exp"] == nil {
-		mw.unauthorized(r, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingExpField, r))
-		return
-	}
-
-	if _, ok := claims["exp"].(float64); !ok {
-		mw.unauthorized(r, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrWrongFormatOfExp, r))
-		return
-	}
-
-	if int64(claims["exp"].(float64)) < mw.TimeFunc().Unix() {
-		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, r))
-		return
-	}
-
-	in, err := mw.inBlacklist(token)
-	if err != nil {
-		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, r))
-		return
-	}
-
-	if in {
-		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrInvalidToken, r))
-		return
-	}
-
-	r.SetParam(PayloadKey, claims)
-	identity := mw.IdentityHandler(r)
-
-	if identity != nil {
-		r.SetParam(mw.IdentityKey, identity)
-	}
-
-	if !mw.Authorizator(identity, r) {
-		mw.unauthorized(r, http.StatusForbidden, mw.HTTPStatusMessageFunc(ErrForbidden, r))
-		return
-	}
-
-	//c.Next() todo
 }
 
 // GetClaimsFromJWT get claims from JWT token
-func (mw *GfJWTMiddleware) GetClaimsFromJWT(r *ghttp.Request) (MapClaims, string, error) {
-	token, err := mw.ParseToken(r)
+func (mw *GfJWTMiddleware) GetClaimsFromJWT(ctx context.Context) (MapClaims, string, error) {
+	r := g.RequestFromCtx(ctx)
+
+	token, err := mw.parseToken(r)
 	if err != nil {
 		return nil, "", err
 	}
@@ -451,18 +282,19 @@ func (mw *GfJWTMiddleware) GetClaimsFromJWT(r *ghttp.Request) (MapClaims, string
 // LoginHandler can be used by clients to get a jwt token.
 // Payload needs to be json in the form of {"username": "USERNAME", "password": "PASSWORD"}.
 // Reply will be of the form {"token": "TOKEN"}.
-func (mw *GfJWTMiddleware) LoginHandler(r *ghttp.Request) {
+func (mw *GfJWTMiddleware) LoginHandler(ctx context.Context) (tokenString string, expire time.Time) {
 	if mw.Authenticator == nil {
-		mw.unauthorized(r, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrMissingAuthenticatorFunc, r))
+		mw.unauthorized(ctx, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrMissingAuthenticatorFunc, ctx))
 		return
 	}
 
-	data, err := mw.Authenticator(r)
+	data, err := mw.Authenticator(ctx)
 	if err != nil {
-		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, r))
+		mw.unauthorized(ctx, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, ctx))
 		return
 	}
 
+	r := g.RequestFromCtx(ctx)
 	// Create the token
 	token := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
 	claims := token.Claims.(jwt.MapClaims)
@@ -474,83 +306,76 @@ func (mw *GfJWTMiddleware) LoginHandler(r *ghttp.Request) {
 	}
 
 	if _, ok := claims[mw.IdentityKey]; !ok {
-		mw.unauthorized(r, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrMissingIdentity, r))
+		mw.unauthorized(ctx, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrMissingIdentity, ctx))
 		return
 	}
 
-	expire := mw.TimeFunc().Add(mw.Timeout)
+	expire = mw.TimeFunc().Add(mw.Timeout)
 	claims["exp"] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
-	tokenString, err := mw.signedString(token)
+
+	tokenString, err = mw.signedString(token)
 	if err != nil {
-		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, r))
+		mw.unauthorized(ctx, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, ctx))
 		return
 	}
 
 	// set cookie
 	if mw.SendCookie {
 		expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
-		maxage := int(expireCookie.Unix() - mw.TimeFunc().Unix())
-		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxage)*time.Second)
+		maxAge := int(expireCookie.Unix() - mw.TimeFunc().Unix())
+		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxAge)*time.Second)
 	}
 
-	mw.LoginResponse(r, http.StatusOK, tokenString, expire)
+	return
 }
 
 // LogoutHandler can be used by clients to remove the jwt cookie (if set)
-func (mw *GfJWTMiddleware) LogoutHandler(r *ghttp.Request) {
+func (mw *GfJWTMiddleware) LogoutHandler(ctx context.Context) {
+	r := g.RequestFromCtx(ctx)
+
 	// delete auth cookie
 	if mw.SendCookie {
 		r.Cookie.SetCookie(mw.CookieName, "", mw.CookieDomain, "/", -1)
 	}
 
-	claims, token, err := mw.CheckIfTokenExpire(r)
+	claims, token, err := mw.CheckIfTokenExpire(ctx)
 	if err != nil {
-		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, r))
+		mw.unauthorized(ctx, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, ctx))
 		return
 	}
 
-	err = mw.setBlacklist(token, claims)
+	err = mw.setBlacklist(ctx, token, claims)
 
 	if err != nil {
-		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, r))
+		mw.unauthorized(ctx, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, ctx))
 		return
 	}
 
-	mw.LogoutResponse(r, http.StatusOK)
-}
-
-func (mw *GfJWTMiddleware) signedString(token *jwt.Token) (string, error) {
-	var tokenString string
-	var err error
-	if mw.usingPublicKeyAlgo() {
-		tokenString, err = token.SignedString(mw.privKey)
-	} else {
-		tokenString, err = token.SignedString(mw.Key)
-	}
-	return tokenString, err
+	return
 }
 
 // RefreshHandler can be used to refresh a token. The token still needs to be valid on refresh.
 // Shall be put under an endpoint that is using the GfJWTMiddleware.
 // Reply will be of the form {"token": "TOKEN"}.
-func (mw *GfJWTMiddleware) RefreshHandler(r *ghttp.Request) {
-	tokenString, expire, err := mw.RefreshToken(r)
+func (mw *GfJWTMiddleware) RefreshHandler(ctx context.Context) (tokenString string, expire time.Time) {
+	tokenString, expire, err := mw.RefreshToken(ctx)
 	if err != nil {
-		mw.unauthorized(r, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, r))
+		mw.unauthorized(ctx, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, ctx))
 		return
 	}
 
-	mw.RefreshResponse(r, http.StatusOK, tokenString, expire)
+	return
 }
 
 // RefreshToken refresh token and check if token is expired
-func (mw *GfJWTMiddleware) RefreshToken(r *ghttp.Request) (string, time.Time, error) {
-	claims, token, err := mw.CheckIfTokenExpire(r)
+func (mw *GfJWTMiddleware) RefreshToken(ctx context.Context) (string, time.Time, error) {
+	claims, token, err := mw.CheckIfTokenExpire(ctx)
 	if err != nil {
 		return "", time.Now(), err
 	}
 
+	r := g.RequestFromCtx(ctx)
 	// Create the token
 	newToken := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
 	newClaims := newToken.Claims.(jwt.MapClaims)
@@ -570,12 +395,12 @@ func (mw *GfJWTMiddleware) RefreshToken(r *ghttp.Request) (string, time.Time, er
 	// set cookie
 	if mw.SendCookie {
 		expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
-		maxage := int(expireCookie.Unix() - time.Now().Unix())
-		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxage)*time.Second)
+		maxAge := int(expireCookie.Unix() - time.Now().Unix())
+		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxAge)*time.Second)
 	}
 
 	// set old token in blacklist
-	err = mw.setBlacklist(token, claims)
+	err = mw.setBlacklist(ctx, token, claims)
 	if err != nil {
 		return "", time.Now(), err
 	}
@@ -584,8 +409,10 @@ func (mw *GfJWTMiddleware) RefreshToken(r *ghttp.Request) (string, time.Time, er
 }
 
 // CheckIfTokenExpire check if token expire
-func (mw *GfJWTMiddleware) CheckIfTokenExpire(r *ghttp.Request) (jwt.MapClaims, string, error) {
-	token, err := mw.ParseToken(r)
+func (mw *GfJWTMiddleware) CheckIfTokenExpire(ctx context.Context) (jwt.MapClaims, string, error) {
+	r := g.RequestFromCtx(ctx)
+
+	token, err := mw.parseToken(r)
 	if err != nil {
 		// If we receive an error, and the error is anything other than a single
 		// ValidationErrorExpired, we want to return the error.
@@ -598,7 +425,7 @@ func (mw *GfJWTMiddleware) CheckIfTokenExpire(r *ghttp.Request) (jwt.MapClaims, 
 		}
 	}
 
-	in, err := mw.inBlacklist(token.Raw)
+	in, err := mw.inBlacklist(ctx, token.Raw)
 	if err != nil {
 		return nil, "", err
 	}
@@ -637,6 +464,135 @@ func (mw *GfJWTMiddleware) TokenGenerator(data interface{}) (string, time.Time, 
 	}
 
 	return tokenString, expire, nil
+}
+
+// GetToken help to get the JWT token string
+func (mw *GfJWTMiddleware) GetToken(ctx context.Context) string {
+	r := g.RequestFromCtx(ctx)
+	token := r.Get(TokenKey).String()
+	if len(token) == 0 {
+		return ""
+	}
+	return token
+}
+
+// GetPayload help to get the payload map
+func (mw *GfJWTMiddleware) GetPayload(ctx context.Context) string {
+	r := g.RequestFromCtx(ctx)
+	token := r.Get(PayloadKey).String()
+	if len(token) == 0 {
+		return ""
+	}
+	return token
+}
+
+// GetIdentity help to get the identity
+func (mw *GfJWTMiddleware) GetIdentity(ctx context.Context) interface{} {
+	r := g.RequestFromCtx(ctx)
+	return r.Get(mw.IdentityKey)
+}
+
+// ExtractClaims help to extract the JWT claims
+func ExtractClaims(ctx context.Context) MapClaims {
+	r := g.RequestFromCtx(ctx)
+	claims := r.GetParam(PayloadKey).Interface()
+	return claims.(MapClaims)
+}
+
+// ExtractClaimsFromToken help to extract the JWT claims from token
+func ExtractClaimsFromToken(token *jwt.Token) MapClaims {
+	if token == nil {
+		return make(MapClaims)
+	}
+
+	claims := MapClaims{}
+	for key, value := range token.Claims.(jwt.MapClaims) {
+		claims[key] = value
+	}
+
+	return claims
+}
+
+// ================= private func =================
+func (mw *GfJWTMiddleware) readKeys() error {
+	err := mw.privateKey()
+	if err != nil {
+		return err
+	}
+	err = mw.publicKey()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (mw *GfJWTMiddleware) privateKey() error {
+	var keyData []byte
+	if mw.PrivKeyFile == "" {
+		keyData = mw.PrivKeyBytes
+	} else {
+		fileContent, err := ioutil.ReadFile(mw.PrivKeyFile)
+		if err != nil {
+			return ErrNoPrivKeyFile
+		}
+		keyData = fileContent
+	}
+
+	if mw.PrivateKeyPassphrase != "" {
+		//nolint:static check
+		key, err := jwt.ParseRSAPrivateKeyFromPEMWithPassword(keyData, mw.PrivateKeyPassphrase)
+		if err != nil {
+			return ErrInvalidPrivKey
+		}
+		mw.privKey = key
+		return nil
+	}
+
+	key, err := jwt.ParseRSAPrivateKeyFromPEM(keyData)
+	if err != nil {
+		return ErrInvalidPrivKey
+	}
+	mw.privKey = key
+	return nil
+}
+
+func (mw *GfJWTMiddleware) publicKey() error {
+	var keyData []byte
+	if mw.PubKeyFile == "" {
+		keyData = mw.PubKeyBytes
+	} else {
+		fileContent, err := ioutil.ReadFile(mw.PubKeyFile)
+		if err != nil {
+			return ErrNoPubKeyFile
+		}
+		keyData = fileContent
+	}
+
+	key, err := jwt.ParseRSAPublicKeyFromPEM(keyData)
+	if err != nil {
+		return ErrInvalidPubKey
+	}
+	mw.pubKey = key
+	return nil
+}
+
+func (mw *GfJWTMiddleware) usingPublicKeyAlgo() bool {
+	switch mw.SigningAlgorithm {
+	case "RS256", "RS512", "RS384":
+		return true
+	}
+	return false
+}
+
+func (mw *GfJWTMiddleware) signedString(token *jwt.Token) (string, error) {
+	var tokenString string
+	var err error
+	if mw.usingPublicKeyAlgo() {
+		tokenString, err = token.SignedString(mw.privKey)
+	} else {
+		tokenString, err = token.SignedString(mw.Key)
+	}
+	return tokenString, err
 }
 
 func (mw *GfJWTMiddleware) jwtFromHeader(r *ghttp.Request, key string) (string, error) {
@@ -684,8 +640,7 @@ func (mw *GfJWTMiddleware) jwtFromParam(r *ghttp.Request, key string) (string, e
 	return token, nil
 }
 
-// ParseToken parse jwt token from ghttp request
-func (mw *GfJWTMiddleware) ParseToken(r *ghttp.Request) (*jwt.Token, error) {
+func (mw *GfJWTMiddleware) parseToken(r *ghttp.Request) (*jwt.Token, error) {
 	var token string
 	var err error
 
@@ -725,15 +680,14 @@ func (mw *GfJWTMiddleware) ParseToken(r *ghttp.Request) (*jwt.Token, error) {
 			return mw.pubKey, nil
 		}
 
-		// save token string if vaild
+		// save token string if valid
 		r.SetParam(TokenKey, token)
 
 		return mw.Key, nil
 	})
 }
 
-// ParseTokenString parse jwt token string
-func (mw *GfJWTMiddleware) ParseTokenString(token string) (*jwt.Token, error) {
+func (mw *GfJWTMiddleware) parseTokenString(token string) (*jwt.Token, error) {
 	if mw.KeyFunc != nil {
 		return jwt.Parse(token, mw.KeyFunc)
 	}
@@ -750,15 +704,66 @@ func (mw *GfJWTMiddleware) ParseTokenString(token string) (*jwt.Token, error) {
 	})
 }
 
-func (mw *GfJWTMiddleware) unauthorized(r *ghttp.Request, code int, message string) {
+func (mw *GfJWTMiddleware) unauthorized(ctx context.Context, code int, message string) {
+	r := g.RequestFromCtx(ctx)
 	r.Header.Set("WWW-Authenticate", "JWT realm="+mw.Realm)
-	mw.Unauthorized(r, code, message)
+	mw.Unauthorized(ctx, code, message)
 	if !mw.DisabledAbort {
 		r.ExitAll()
 	}
 }
 
-func (mw *GfJWTMiddleware) setBlacklist(token string, claims jwt.MapClaims) error {
+func (mw *GfJWTMiddleware) middlewareImpl(ctx context.Context) {
+	r := g.RequestFromCtx(ctx)
+
+	claims, token, err := mw.GetClaimsFromJWT(ctx)
+	if err != nil {
+		mw.unauthorized(ctx, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, ctx))
+		return
+	}
+
+	if claims["exp"] == nil {
+		mw.unauthorized(ctx, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingExpField, ctx))
+		return
+	}
+
+	if _, ok := claims["exp"].(float64); !ok {
+		mw.unauthorized(ctx, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrWrongFormatOfExp, ctx))
+		return
+	}
+
+	if int64(claims["exp"].(float64)) < mw.TimeFunc().Unix() {
+		mw.unauthorized(ctx, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, ctx))
+		return
+	}
+
+	in, err := mw.inBlacklist(ctx, token)
+	if err != nil {
+		mw.unauthorized(ctx, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, ctx))
+		return
+	}
+
+	if in {
+		mw.unauthorized(ctx, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrInvalidToken, ctx))
+		return
+	}
+
+	r.SetParam(PayloadKey, claims)
+
+	identity := mw.IdentityHandler(ctx)
+	if identity != nil {
+		r.SetParam(mw.IdentityKey, identity)
+	}
+
+	if !mw.Authorizator(identity, ctx) {
+		mw.unauthorized(ctx, http.StatusForbidden, mw.HTTPStatusMessageFunc(ErrForbidden, ctx))
+		return
+	}
+
+	//c.Next() todo
+}
+
+func (mw *GfJWTMiddleware) setBlacklist(ctx context.Context, token string, claims jwt.MapClaims) error {
 	// The goal of MD5 is to reduce the key length.
 	token, err := gmd5.EncryptString(token)
 
@@ -772,7 +777,7 @@ func (mw *GfJWTMiddleware) setBlacklist(token string, claims jwt.MapClaims) erro
 	duration := time.Unix(exp, 0).Add(mw.MaxRefresh).Sub(mw.TimeFunc()).Truncate(time.Second)
 
 	// global gcache
-	err = blacklist.Set(mw.Ctx, token, true, duration)
+	err = blacklist.Set(ctx, token, true, duration)
 
 	if err != nil {
 		return err
@@ -781,7 +786,7 @@ func (mw *GfJWTMiddleware) setBlacklist(token string, claims jwt.MapClaims) erro
 	return nil
 }
 
-func (mw *GfJWTMiddleware) inBlacklist(token string) (bool, error) {
+func (mw *GfJWTMiddleware) inBlacklist(ctx context.Context, token string) (bool, error) {
 	// The goal of MD5 is to reduce the key length.
 	tokenRaw, err := gmd5.EncryptString(token)
 
@@ -790,38 +795,9 @@ func (mw *GfJWTMiddleware) inBlacklist(token string) (bool, error) {
 	}
 
 	// Global gcache
-	if in, err := blacklist.Contains(mw.Ctx, tokenRaw); err != nil {
+	if in, err := blacklist.Contains(ctx, tokenRaw); err != nil {
 		return false, nil
 	} else {
 		return in, nil
 	}
-}
-
-// ExtractClaims help to extract the JWT claims
-func ExtractClaims(r *ghttp.Request) MapClaims {
-	claims := r.GetParam(PayloadKey).Interface()
-	return claims.(MapClaims)
-}
-
-// ExtractClaimsFromToken help to extract the JWT claims from token
-func ExtractClaimsFromToken(token *jwt.Token) MapClaims {
-	if token == nil {
-		return make(MapClaims)
-	}
-
-	claims := MapClaims{}
-	for key, value := range token.Claims.(jwt.MapClaims) {
-		claims[key] = value
-	}
-
-	return claims
-}
-
-// GetToken help to get the JWT token string
-func GetToken(r *ghttp.Request) string {
-	token := r.Get(TokenKey).String()
-	if len(token) == 0 {
-		return ""
-	}
-	return token
 }

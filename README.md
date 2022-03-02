@@ -15,8 +15,12 @@ import "github.com/gogf/gf-jwt/v2"
 ```
 
 
-![](screenshot/1.png)
+![login](screenshot/1.png)
 
-![](screenshot/2.png)
+![check user info](screenshot/2.png)
 
-![](screenshot/3.png)
+![refresh token](screenshot/3.png)
+
+![logout](screenshot/4.png)
+
+![check user info again](screenshot/5.png)

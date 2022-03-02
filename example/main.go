@@ -1,30 +1,10 @@
 package main
 
 import (
-	"github.com/gogf/gf-jwt/v2/example/api"
-	"github.com/gogf/gf-jwt/v2/example/service"
-	"github.com/gogf/gf/v2/frame/g"
-	"github.com/gogf/gf/v2/net/ghttp"
+	"github.com/gogf/gf-jwt/v2/example/internal/cmd"
+	"github.com/gogf/gf/v2/os/gctx"
 )
 
-// authHook is the HOOK function implements JWT logistics.
-func middlewareAuth(r *ghttp.Request) {
-	api.Auth.MiddlewareFunc()(r)
-	r.Middleware.Next()
-}
-
 func main() {
-	s := g.Server()
-	s.BindHandler("/", api.Work.Works)
-	s.Group("/", func(g *ghttp.RouterGroup) {
-		g.ALL("/login", api.Auth.LoginHandler)
-		g.ALL("/refresh_token", api.Auth.RefreshHandler)
-		g.ALL("/logout", api.Auth.LogoutHandler)
-	})
-	s.Group("/user", func(g *ghttp.RouterGroup) {
-		g.Middleware(service.Middleware.CORS, middlewareAuth)
-		g.ALL("/info", api.Work.Info)
-	})
-	s.SetPort(8080)
-	s.Run()
+	cmd.Main.Run(gctx.New())
 }

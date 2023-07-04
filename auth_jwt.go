@@ -3,15 +3,15 @@ package jwt
 import (
 	"context"
 	"crypto/rsa"
-	"github.com/gogf/gf/v2/crypto/gmd5"
-	"github.com/gogf/gf/v2/frame/g"
-	"github.com/gogf/gf/v2/net/ghttp"
-	"github.com/gogf/gf/v2/os/gcache"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/gogf/gf/v2/crypto/gmd5"
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/net/ghttp"
+	"github.com/gogf/gf/v2/os/gcache"
 	"github.com/golang-jwt/jwt/v4"
 )
 
@@ -145,6 +145,9 @@ type GfJWTMiddleware struct {
 
 	// CacheAdapter
 	CacheAdapter gcache.Adapter
+
+	// BlacklistPrefix
+	BlacklistPrefix string
 }
 
 var (
@@ -245,6 +248,10 @@ func New(mw *GfJWTMiddleware) *GfJWTMiddleware {
 		blacklist.SetAdapter(mw.CacheAdapter)
 	}
 
+	if mw.BlacklistPrefix == "" {
+		mw.BlacklistPrefix = "JWT:BLACKLIST:"
+	}
+
 	return mw
 }
 
@@ -311,8 +318,8 @@ func (mw *GfJWTMiddleware) LoginHandler(ctx context.Context) (tokenString string
 	}
 
 	expire = mw.TimeFunc().Add(mw.Timeout)
-	claims["exp"] = expire.Unix()
-	claims["orig_iat"] = mw.TimeFunc().Unix()
+	claims["exp"] = expire.UnixNano() / 1e6
+	claims["orig_iat"] = mw.TimeFunc().UnixNano() / 1e6
 
 	tokenString, err = mw.signedString(token)
 	if err != nil {
@@ -323,7 +330,7 @@ func (mw *GfJWTMiddleware) LoginHandler(ctx context.Context) (tokenString string
 	// set cookie
 	if mw.SendCookie {
 		expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
-		maxAge := int(expireCookie.Unix() - mw.TimeFunc().Unix())
+		maxAge := (expireCookie.UnixNano() - mw.TimeFunc().UnixNano()) / 1e6
 		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxAge)*time.Second)
 	}
 
@@ -385,8 +392,8 @@ func (mw *GfJWTMiddleware) RefreshToken(ctx context.Context) (string, time.Time,
 	}
 
 	expire := mw.TimeFunc().Add(mw.Timeout)
-	newClaims["exp"] = expire.Unix()
-	newClaims["orig_iat"] = mw.TimeFunc().Unix()
+	newClaims["exp"] = expire.UnixNano() / 1e6
+	newClaims["orig_iat"] = mw.TimeFunc().UnixNano() / 1e6
 	tokenString, err := mw.signedString(newToken)
 	if err != nil {
 		return "", time.Now(), err
@@ -395,7 +402,7 @@ func (mw *GfJWTMiddleware) RefreshToken(ctx context.Context) (string, time.Time,
 	// set cookie
 	if mw.SendCookie {
 		expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
-		maxAge := int(expireCookie.Unix() - time.Now().Unix())
+		maxAge := (expireCookie.UnixNano() - time.Now().UnixNano()) / 1e6
 		r.Cookie.SetCookie(mw.CookieName, tokenString, mw.CookieDomain, "/", time.Duration(maxAge)*time.Second)
 	}
 
@@ -437,7 +444,7 @@ func (mw *GfJWTMiddleware) CheckIfTokenExpire(ctx context.Context) (jwt.MapClaim
 
 	origIat := int64(claims["orig_iat"].(float64))
 
-	if origIat < mw.TimeFunc().Add(-mw.MaxRefresh).Unix() {
+	if origIat < (mw.TimeFunc().Add(-mw.MaxRefresh).UnixNano() / 1e6) {
 		return nil, "", ErrExpiredToken
 	}
 
@@ -456,8 +463,8 @@ func (mw *GfJWTMiddleware) TokenGenerator(data interface{}) (string, time.Time, 
 	}
 
 	expire := mw.TimeFunc().UTC().Add(mw.Timeout)
-	claims["exp"] = expire.Unix()
-	claims["orig_iat"] = mw.TimeFunc().Unix()
+	claims["exp"] = expire.UnixNano() / 1e6
+	claims["orig_iat"] = mw.TimeFunc().UnixNano() / 1e6
 	tokenString, err := mw.signedString(token)
 	if err != nil {
 		return "", time.Time{}, err
@@ -732,7 +739,7 @@ func (mw *GfJWTMiddleware) middlewareImpl(ctx context.Context) {
 		return
 	}
 
-	if int64(claims["exp"].(float64)) < mw.TimeFunc().Unix() {
+	if int64(claims["exp"].(float64)) < (mw.TimeFunc().UnixNano() / 1e6) {
 		mw.unauthorized(ctx, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, ctx))
 		return
 	}
@@ -776,8 +783,9 @@ func (mw *GfJWTMiddleware) setBlacklist(ctx context.Context, token string, claim
 	// save duration time = (exp + max_refresh) - now
 	duration := time.Unix(exp, 0).Add(mw.MaxRefresh).Sub(mw.TimeFunc()).Truncate(time.Second)
 
+	key := mw.BlacklistPrefix + token
 	// global gcache
-	err = blacklist.Set(ctx, token, true, duration)
+	err = blacklist.Set(ctx, key, true, duration)
 
 	if err != nil {
 		return err
@@ -794,8 +802,9 @@ func (mw *GfJWTMiddleware) inBlacklist(ctx context.Context, token string) (bool,
 		return false, nil
 	}
 
+	key := mw.BlacklistPrefix + tokenRaw
 	// Global gcache
-	if in, err := blacklist.Contains(ctx, tokenRaw); err != nil {
+	if in, err := blacklist.Contains(ctx, key); err != nil {
 		return false, nil
 	} else {
 		return in, nil

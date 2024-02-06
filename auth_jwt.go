@@ -442,9 +442,9 @@ func (mw *GfJWTMiddleware) CheckIfTokenExpire(ctx context.Context) (jwt.MapClaim
 
 	claims := token.Claims.(jwt.MapClaims)
 
-	origIat := int64(claims["orig_iat"].(float64))
+	exp := int64(claims["exp"].(float64))
 
-	if origIat < (mw.TimeFunc().Add(-mw.MaxRefresh).UnixNano() / 1e6) {
+	if exp < (mw.TimeFunc().Add(-mw.MaxRefresh).UnixNano() / 1e6) {
 		return nil, "", ErrExpiredToken
 	}
 
